@@ -10,12 +10,10 @@
 class VulkanEngine {
 public:
 
-	VulkanEngine(uint32_t width, uint32_t height);
-
 	bool isInitialized{ false };
 	int frameNumber {0};
 
-	VkExtent2D windowExtent;
+	VkExtent2D windowExtent{800, 600};
 
 	struct SDL_Window* window{ nullptr };
 
@@ -29,6 +27,17 @@ public:
 	VkFormat swapchainImageFormat;
 	std::vector<VkImage> swapchainImages;
 	std::vector<VkImageView> swapchainImageViews;
+
+	VkQueue graphicsQueue;
+	uint32_t graphicsQueueFamily;
+	VkCommandPool commandPool;
+	VkCommandBuffer mainCommandBuffer;
+
+	VkRenderPass renderPass;
+	std::vector<VkFramebuffer> framebuffers;
+
+	VkSemaphore presentSemaphore, renderSemaphore;
+	VkFence renderFence;
 
 	//initializes everything in the engine
 	void init();
@@ -47,4 +56,12 @@ private:
 	void InitVulkan();
 
 	void InitSwapchain();
+
+	void InitCommands();
+
+	void InitDefaultRenderpass();
+
+	void InitFramebuffers();
+
+	void InitSyncStructures();
 };
