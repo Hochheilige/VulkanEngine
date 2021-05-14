@@ -6,16 +6,57 @@
 #include <vk_types.h>
 
 #include <vector>
+#include <deque>
+#include <functional>
+
+class PipelineBuilder {
+public:
+
+	std::vector<VkPipelineShaderStageCreateInfo> shaderStages;
+	VkPipelineVertexInputStateCreateInfo vertexInputInfo;
+	VkPipelineInputAssemblyStateCreateInfo inputAssembly;
+	VkViewport viewport;
+	VkRect2D scissor;
+	VkPipelineRasterizationStateCreateInfo rasterizer;
+	VkPipelineColorBlendAttachmentState colorBlendingAttachment;
+	VkPipelineMultisampleStateCreateInfo multisampling;
+	VkPipelineLayout pipelinaLayout;
+
+	VkPipeline Build(VkDevice device, VkRenderPass pass);
+
+private:
+
+
+};
+
+struct DeletionQueue {
+	std::deque<std::function<void()>> deletors;
+
+	void pushFunction(std::function<void()>&& function) {
+		deletors.push_back(function);
+	}
+
+	void flush() {
+		for (auto it = deletors.rbegin(); it != deletors.rend(); ++it) {
+			(*it)();
+		}
+
+		deletors.clear();
+	}
+};
 
 class VulkanEngine {
 public:
 
-	bool isInitialized{ false };
-	int frameNumber {0};
+	VulkanEngine();
 
-	VkExtent2D windowExtent{800, 600};
+	bool isInitialized;
+	int frameNumber;
+	int selectedShader;
 
+	VkExtent2D windowExtent;
 	struct SDL_Window* window{ nullptr };
+	
 
 	VkInstance instance;
 	VkDebugUtilsMessengerEXT debugMessenger;
@@ -38,6 +79,12 @@ public:
 
 	VkSemaphore presentSemaphore, renderSemaphore;
 	VkFence renderFence;
+
+	VkPipelineLayout trianglePipelineLayout;
+	VkPipeline trianglePipeline;
+	VkPipeline redTrianglePipeline;
+
+	DeletionQueue mainDeletionQueue;
 
 	//initializes everything in the engine
 	void init();
@@ -64,4 +111,12 @@ private:
 	void InitFramebuffers();
 
 	void InitSyncStructures();
+
+	void InitPipelines();
+
+	bool LoadShaderModule(const char* filePath, VkShaderModule* outShaderModule);
 };
+
+
+
+

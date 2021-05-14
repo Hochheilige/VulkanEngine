@@ -12,6 +12,7 @@ find_package(Vulkan REQUIRED)
 add_subdirectory(third_party)
 
 set (CMAKE_RUNTIME_OUTPUT_DIRECTORY "${PROJECT_SOURCE_DIR}/bin")
+set(CXX_STANDARD 17)
 
 add_subdirectory(src)
 
