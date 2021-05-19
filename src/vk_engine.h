@@ -95,7 +95,9 @@ public:
 	VkPipeline trianglePipeline;
 	VkPipeline redTrianglePipeline;
 	VkPipeline meshPipeline;
+
 	Mesh triangleMesh;
+	Mesh monkeyMesh;
 
 	DeletionQueue mainDeletionQueue;
 

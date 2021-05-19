@@ -15,6 +15,8 @@
 #define VMA_IMPLEMENTATION
 #include <vk_mem_alloc.h>
 
+#define _WIN32 1
+
 #define VK_CHECK(x)                                                     \
 	do {                                                                \
 		VkResult err = x;                                               \
@@ -117,7 +119,7 @@ void VulkanEngine::draw() {
 		vkCmdBindVertexBuffers(cmd, 0, 1, &triangleMesh.vertexBuffer.buffer, &offset);
 		glm::vec3 camPos = { 0.f, 0.f, -2.f };
 		glm::mat4 view = glm::translate(glm::mat4(1.f), camPos);
-		glm::mat4 projection = glm::perspective(glm::radians(70.f), 600.f / 800.f, 0.1f, 100.0f);
+		glm::mat4 projection = glm::perspective(glm::radians(70.f), 800.f / 600.f, 0.1f, 200.0f);
 		projection[1][1] *= -1;
 		//model rotation
 		glm::mat4 model = glm::rotate(glm::mat4{ 1.0f }, glm::radians(frameNumber * 0.4f), glm::vec3(0, 1, 0));
@@ -130,13 +132,35 @@ void VulkanEngine::draw() {
 
 		//upload the matrix to the GPU via pushconstants
 		vkCmdPushConstants(cmd, meshPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(MeshPushConstants), &constants);
-
+		vkCmdDraw(cmd, triangleMesh.vertices.size(), 1, 0, 0);
 	} else if (selectedShader == 1) {
+		vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, meshPipeline);
+		VkDeviceSize offset = 0;
+		vkCmdBindVertexBuffers(cmd, 0, 1, &monkeyMesh.vertexBuffer.buffer, &offset);
+		glm::vec3 camPos = { 0.f, 0.f, -2.f };
+		glm::mat4 view = glm::translate(glm::mat4(1.f), camPos);
+		glm::mat4 projection = glm::perspective(glm::radians(70.f), 800.f / 600.f, 0.1f, 200.0f);
+		projection[1][1] *= -1;
+		//model rotation
+		glm::mat4 model = glm::rotate(glm::mat4{ 1.0f }, glm::radians(frameNumber * 0.4f), glm::vec3(0, 1, 0));
+
+		//calculate final mesh matrix
+		glm::mat4 mesh_matrix = projection * view * model;
+
+		MeshPushConstants constants;
+		constants.renderMatrix = mesh_matrix;
+
+		//upload the matrix to the GPU via pushconstants
+		vkCmdPushConstants(cmd, meshPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(MeshPushConstants), &constants);
+		vkCmdDraw(cmd, monkeyMesh.vertices.size(), 1, 0, 0);
+	} else if (selectedShader == 2) {
 		vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, redTrianglePipeline);
+		vkCmdDraw(cmd, 3, 1, 0, 0);
 	} else {
 		vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, trianglePipeline);
+		vkCmdDraw(cmd, 3, 1, 0, 0);
 	}
-	vkCmdDraw(cmd, 3, 1, 0, 0);
+	
 
 	vkCmdEndRenderPass(cmd);
 	VK_CHECK(vkEndCommandBuffer(cmd));
@@ -187,7 +211,7 @@ void VulkanEngine::run()
 				std::cout << (char)e.key.keysym.sym << " Key pressed\n";
 				if (e.key.keysym.sym == SDLK_SPACE) {
 					selectedShader += 1;
-					if (selectedShader > 2){
+					if (selectedShader > 3){
 						selectedShader = 0;
 					}
 				}
@@ -545,7 +569,10 @@ void VulkanEngine::LoadMeshes() {
 	triangleMesh.vertices[1].color = { 0.f, 1.f, 0.f };
 	triangleMesh.vertices[2].color = { 0.f, 1.f, 0.f };
 
+	monkeyMesh.LoadFromObj("../assets/monkey_smooth.obj");
+
 	UploadMesh(triangleMesh);
+	UploadMesh(monkeyMesh);
 }
 
 void VulkanEngine::UploadMesh(Mesh& mesh) {

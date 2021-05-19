@@ -22,4 +22,6 @@ struct Vertex {
 struct Mesh {
 	std::vector<Vertex> vertices;
 	AllocatedBuffer vertexBuffer;
+
+	bool LoadFromObj(const char* filename);
 };
