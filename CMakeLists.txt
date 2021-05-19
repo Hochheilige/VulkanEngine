@@ -12,7 +12,6 @@ find_package(Vulkan REQUIRED)
 add_subdirectory(third_party)
 
 set (CMAKE_RUNTIME_OUTPUT_DIRECTORY "${PROJECT_SOURCE_DIR}/bin")
-set(CXX_STANDARD 17)
 
 add_subdirectory(src)
 
@@ -43,4 +42,6 @@ endforeach(GLSL)
 add_custom_target(
     Shaders 
     DEPENDS ${SPIRV_BINARY_FILES}
-    )
+)
+
+target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_17)

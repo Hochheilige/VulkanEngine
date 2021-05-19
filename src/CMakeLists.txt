@@ -6,7 +6,7 @@ add_executable(vulkan_guide
     vk_engine.h
     vk_types.h
     vk_initializers.cpp
-    vk_initializers.h)
+    vk_initializers.h "vk_mesh.h" "vk_mesh.cpp")
 
 
 set_property(TARGET vulkan_guide PROPERTY VS_DEBUGGER_WORKING_DIRECTORY "$<TARGET_FILE_DIR:vulkan_guide>")
@@ -17,3 +17,5 @@ target_link_libraries(vulkan_guide vkbootstrap vma glm tinyobjloader imgui stb_i
 target_link_libraries(vulkan_guide Vulkan::Vulkan sdl2)
 
 add_dependencies(vulkan_guide Shaders)
+
+target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_17)

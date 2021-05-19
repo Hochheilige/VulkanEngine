@@ -4,6 +4,10 @@
 #pragma once
 
 #include <vk_types.h>
+#include <vk_mesh.h>
+
+#include <glm/glm.hpp>
+#include <glm/gtx/transform.hpp>
 
 #include <vector>
 #include <deque>
@@ -45,6 +49,11 @@ struct DeletionQueue {
 	}
 };
 
+struct MeshPushConstants {
+	glm::vec4 data;
+	glm::mat4 renderMatrix;
+};
+
 class VulkanEngine {
 public:
 
@@ -81,10 +90,17 @@ public:
 	VkFence renderFence;
 
 	VkPipelineLayout trianglePipelineLayout;
+	VkPipelineLayout meshPipelineLayout;
+
 	VkPipeline trianglePipeline;
 	VkPipeline redTrianglePipeline;
+	VkPipeline meshPipeline;
+	Mesh triangleMesh;
 
 	DeletionQueue mainDeletionQueue;
+
+	VmaAllocator allocator;
+
 
 	//initializes everything in the engine
 	void init();
@@ -115,6 +131,10 @@ private:
 	void InitPipelines();
 
 	bool LoadShaderModule(const char* filePath, VkShaderModule* outShaderModule);
+
+	void LoadMeshes();
+
+	void UploadMesh(Mesh& mesh);
 };
 
 
