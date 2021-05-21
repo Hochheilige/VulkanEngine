@@ -11,7 +11,19 @@
 
 #include <vector>
 #include <deque>
+#include <unordered_map>
 #include <functional>
+
+struct Material {
+	VkPipeline pipeline;
+	VkPipelineLayout pipelineLayout;
+};
+
+struct RenderObject {
+	Mesh* mesh;
+	Material* material;
+	glm::mat4 transformMatrix;
+};
 
 class PipelineBuilder {
 public:
@@ -19,6 +31,7 @@ public:
 	std::vector<VkPipelineShaderStageCreateInfo> shaderStages;
 	VkPipelineVertexInputStateCreateInfo vertexInputInfo;
 	VkPipelineInputAssemblyStateCreateInfo inputAssembly;
+	VkPipelineDepthStencilStateCreateInfo depthStencil;
 	VkViewport viewport;
 	VkRect2D scissor;
 	VkPipelineRasterizationStateCreateInfo rasterizer;
@@ -66,7 +79,6 @@ public:
 	VkExtent2D windowExtent;
 	struct SDL_Window* window{ nullptr };
 	
-
 	VkInstance instance;
 	VkDebugUtilsMessengerEXT debugMessenger;
 	VkPhysicalDevice gpu;
@@ -77,6 +89,10 @@ public:
 	VkFormat swapchainImageFormat;
 	std::vector<VkImage> swapchainImages;
 	std::vector<VkImageView> swapchainImageViews;
+
+	VkImageView depthImageView;
+	AllocatedImage depthImage;
+	VkFormat depthFormat;
 
 	VkQueue graphicsQueue;
 	uint32_t graphicsQueueFamily;
@@ -98,6 +114,10 @@ public:
 
 	Mesh triangleMesh;
 	Mesh monkeyMesh;
+
+	std::vector<RenderObject> renderables;
+	std::unordered_map<std::string, Material> materials;
+	std::unordered_map<std::string, Mesh> meshes;
 
 	DeletionQueue mainDeletionQueue;
 
@@ -132,11 +152,22 @@ private:
 
 	void InitPipelines();
 
+	void InitScene();
+
 	bool LoadShaderModule(const char* filePath, VkShaderModule* outShaderModule);
 
 	void LoadMeshes();
 
 	void UploadMesh(Mesh& mesh);
+
+	Material* CreateMaterial(VkPipeline pipeline, VkPipelineLayout layout, const std::string& name);
+
+	Material* GetMaterial(const std::string& name);
+
+	Mesh* GetMesh(const std::string& name);
+
+	void DrawObjects(VkCommandBuffer cmd, RenderObject* first, int count);
+
 };
 
 
