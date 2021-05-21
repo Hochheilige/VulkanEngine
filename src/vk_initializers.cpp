@@ -19,6 +19,83 @@ VkCommandBufferAllocateInfo vkinit::CommandBufferAllocateInfo(VkCommandPool pool
     return info;
 }
 
+VkCommandBufferBeginInfo vkinit::CommandBufferBeginInfo(VkCommandBufferUsageFlags flags) {
+    VkCommandBufferBeginInfo info = {};
+    info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    info.pNext = nullptr;
+    info.pInheritanceInfo = nullptr;
+    info.flags = flags;
+    return info;
+}
+
+VkFramebufferCreateInfo vkinit::FramebufferCreateInfo(VkRenderPass renderPass, VkExtent2D extent) {
+    VkFramebufferCreateInfo info = {};
+    info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+    info.pNext = nullptr;
+    info.renderPass = renderPass;
+    info.attachmentCount = 1;
+    info.width = extent.width;
+    info.height = extent.height;
+    info.layers = 1;
+    return info;
+}
+
+VkFenceCreateInfo vkinit::FenceCreateInfo(VkFenceCreateFlags flags) {
+    VkFenceCreateInfo info = {};
+    info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+    info.pNext = nullptr;
+    info.flags = flags;
+    return info;
+}
+
+VkSemaphoreCreateInfo vkinit::SemaphoreCreateInfo(VkSemaphoreCreateFlags flags) {
+    VkSemaphoreCreateInfo info = {};
+    info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+    info.pNext = nullptr;
+    info.flags = flags;
+    return info;
+}
+
+VkSubmitInfo vkinit::SubmitInfo(VkCommandBuffer* cmd) {
+    VkSubmitInfo info = {};
+    info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    info.pNext = nullptr;
+    info.waitSemaphoreCount = 0;
+    info.pWaitSemaphores = nullptr;
+    info.pWaitDstStageMask = nullptr;
+    info.commandBufferCount = 1;
+    info.pCommandBuffers = cmd;
+    info.signalSemaphoreCount = 0;
+    info.pSignalSemaphores = nullptr;
+    return info;
+}
+
+VkPresentInfoKHR vkinit::PresentInfo() {
+    VkPresentInfoKHR info = {};
+    info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+    info.pNext = nullptr;
+    info.swapchainCount = 0;
+    info.pSwapchains = nullptr;
+    info.pWaitSemaphores = nullptr;
+    info.waitSemaphoreCount = 0;
+    info.pImageIndices = nullptr;
+    return info;
+}
+
+VkRenderPassBeginInfo vkinit::RenderPassBeginInfo(VkRenderPass renderPass, VkExtent2D extent, VkFramebuffer framebuffer) {
+    VkRenderPassBeginInfo info = {};
+    info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    info.pNext = nullptr;
+    info.renderPass = renderPass;
+    info.renderArea.offset.x = 0;
+    info.renderArea.offset.y = 0;
+    info.renderArea.extent = extent;
+    info.clearValueCount = 1;
+    info.pClearValues = nullptr;
+    info.framebuffer = framebuffer;
+    return info;
+}
+
 VkPipelineShaderStageCreateInfo vkinit::PipelineShaderStageCreateInfo(VkShaderStageFlagBits stage, VkShaderModule shaderModule) {
     VkPipelineShaderStageCreateInfo info = {};
     info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
@@ -94,6 +171,53 @@ VkPipelineLayoutCreateInfo vkinit::PipelineLayoutCreateInfo() {
     info.pSetLayouts = nullptr;
     info.pushConstantRangeCount = 0;
     info.pPushConstantRanges = nullptr;
+    return info;
+}
+
+VkImageCreateInfo vkinit::ImageCreateInfo(VkFormat format, VkImageUsageFlags usageFlags, VkExtent3D extent) {
+    VkImageCreateInfo info = {};
+    info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+    info.pNext = nullptr;
+    info.imageType = VK_IMAGE_TYPE_2D;
+    info.format = format;
+    info.extent = extent;
+    info.mipLevels = 1;
+    info.arrayLayers = 1;
+    info.samples = VK_SAMPLE_COUNT_1_BIT;
+    info.tiling = VK_IMAGE_TILING_OPTIMAL;
+    info.usage = usageFlags;
+
+    return info;
+}
+
+VkImageViewCreateInfo vkinit::ImageviewCreateInfo(VkFormat format, VkImage image, VkImageAspectFlags aspectFlags) {
+    VkImageViewCreateInfo info = {};
+    info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    info.pNext = nullptr;
+    info.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    info.image = image;
+    info.format = format;
+    info.subresourceRange.baseMipLevel = 0;
+    info.subresourceRange.layerCount = 1;
+    info.subresourceRange.baseArrayLayer = 0;
+    info.subresourceRange.layerCount = 1;
+    info.subresourceRange.aspectMask = aspectFlags;
+
+    return info;
+}
+
+VkPipelineDepthStencilStateCreateInfo vkinit::DepthStencilCreateInfo(bool depthTest, bool depthWrite, VkCompareOp compareOp) {
+    VkPipelineDepthStencilStateCreateInfo info = {};
+    info.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+    info.pNext = nullptr;
+    info.depthTestEnable = depthTest ? VK_TRUE : VK_FALSE;
+    info.depthWriteEnable = depthWrite ? VK_TRUE : VK_FALSE;
+    info.depthCompareOp = depthTest ? compareOp : VK_COMPARE_OP_ALWAYS;
+    info.depthBoundsTestEnable = VK_FALSE;
+    info.minDepthBounds = 0.0f;
+    info.maxDepthBounds = 1.0f;
+    info.stencilTestEnable = VK_FALSE;
+
     return info;
 }
 
