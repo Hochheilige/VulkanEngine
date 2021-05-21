@@ -107,14 +107,6 @@ public:
 
 	VmaAllocator allocator;
 
-	VkImageView depthImageView;
-	AllocatedImage depthImage;
-	VkFormat depthFormat;
-
-	std::vector<RenderObject> renderables;
-	std::unordered_map<std::string, Material> materials;
-	std::unordered_map<std::string, Mesh> meshes;
-
 	VkPipelineLayout trianglePipelineLayout;
 	VkPipelineLayout meshPipelineLayout;
 
