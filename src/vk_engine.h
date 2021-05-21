@@ -85,6 +85,10 @@ public:
 	VkSemaphore presentSemaphore, renderSemaphore;
 	VkFence renderFence;
 
+	VkImageView depthImageView;
+	AllocatedImage depthImage;
+	VkFormat depthFormat;
+
 	VkQueue graphicsQueue;
 	uint32_t graphicsQueueFamily;
 
@@ -120,6 +124,10 @@ public:
 
 	Mesh triangleMesh;
 	Mesh monkeyMesh;
+
+	std::vector<RenderObject> renderables;
+	std::unordered_map<std::string, Material> materials;
+	std::unordered_map<std::string, Mesh> meshes;
 
 	DeletionQueue mainDeletionQueue;
 
