@@ -14,17 +14,6 @@
 #include <unordered_map>
 #include <functional>
 
-struct Material {
-	VkPipeline pipeline;
-	VkPipelineLayout pipelineLayout;
-};
-
-struct RenderObject {
-	Mesh* mesh;
-	Material* material;
-	glm::mat4 transformMatrix;
-};
-
 class PipelineBuilder {
 public:
 
@@ -49,17 +38,9 @@ private:
 struct DeletionQueue {
 	std::deque<std::function<void()>> deletors;
 
-	void pushFunction(std::function<void()>&& function) {
-		deletors.push_back(function);
-	}
+	void pushFunction(std::function<void()>&& function);
 
-	void flush() {
-		for (auto it = deletors.rbegin(); it != deletors.rend(); ++it) {
-			(*it)();
-		}
-
-		deletors.clear();
-	}
+	void flush();
 };
 
 struct MeshPushConstants {
@@ -67,33 +48,50 @@ struct MeshPushConstants {
 	glm::mat4 renderMatrix;
 };
 
+struct Material {
+	VkPipeline pipeline;
+	VkPipelineLayout pipelineLayout;
+};
+
+struct RenderObject {
+	Mesh* mesh;
+	Material* material;
+	glm::mat4 transformMatrix;
+};
+
+struct FrameData {
+	VkSemaphore presentSemaphore, renderSemaphore;
+	VkFence renderFence;
+	VkCommandPool commandPool;
+	VkCommandBuffer mainCommandBuffer;
+};
+
+constexpr uint32_t FRAME_OVERLAP = 3;
+
 class VulkanEngine {
 public:
 
-	bool isInitialized{ false };
-	int frameNumber{ 0 };
-	int selectedShader{ 0 };
+	VulkanEngine();
 
-	VkExtent2D windowExtent{ 800, 600 };
-	struct SDL_Window* window{ nullptr };
+	bool isInitialized;
+	int frameNumber;
+	int selectedShader;
+
+	VkExtent2D windowExtent;
+	struct SDL_Window* window;
 	
 	VkInstance instance;
 	VkDebugUtilsMessengerEXT debugMessenger;
 	VkPhysicalDevice gpu;
 	VkDevice device;
 
+	std::vector<FrameData> frames;
+
 	VkSemaphore presentSemaphore, renderSemaphore;
 	VkFence renderFence;
 
-	VkImageView depthImageView;
-	AllocatedImage depthImage;
-	VkFormat depthFormat;
-
 	VkQueue graphicsQueue;
 	uint32_t graphicsQueueFamily;
-
-	VkCommandPool commandPool;
-	VkCommandBuffer mainCommandBuffer;
 
 	VkRenderPass renderPass;
 
@@ -105,7 +103,16 @@ public:
 	std::vector<VkImage> swapchainImages;
 	std::vector<VkImageView> swapchainImageViews;
 
+	DeletionQueue mainDeletionQueue;
+
+	VkCommandPool commandPool;
+	VkCommandBuffer mainCommandBuffer;
+
 	VmaAllocator allocator;
+
+	VkImageView depthImageView;
+	AllocatedImage depthImage;
+	VkFormat depthFormat;
 
 	VkPipelineLayout trianglePipelineLayout;
 	VkPipelineLayout meshPipelineLayout;
@@ -121,8 +128,7 @@ public:
 	std::unordered_map<std::string, Material> materials;
 	std::unordered_map<std::string, Mesh> meshes;
 
-	DeletionQueue mainDeletionQueue;
-
+	
 	//initializes everything in the engine
 	void init();
 
@@ -134,6 +140,8 @@ public:
 
 	//run main loop
 	void run();
+
+	FrameData& GetCurrentFrame();
 
 private:
 
