@@ -59,11 +59,35 @@ struct RenderObject {
 	glm::mat4 transformMatrix;
 };
 
+struct GPUCameraData {
+	glm::mat4 view;
+	glm::mat4 projection;
+	glm::mat4 viewproj;
+};
+
+struct GPUSceneData {
+	glm::vec4 fogColor;
+	glm::vec4 fogDistances;
+	glm::vec4 ambientColor;
+	glm::vec4 sunlightDirectories;
+	glm::vec4 sunlightColor;
+};
+
+struct GPUObjectData {
+	glm::mat4 modelMatrix;
+};
+
 struct FrameData {
 	VkSemaphore presentSemaphore, renderSemaphore;
 	VkFence renderFence;
 	VkCommandPool commandPool;
 	VkCommandBuffer mainCommandBuffer;
+
+	AllocatedBuffer cameraBuffer;
+	AllocatedBuffer objectBuffer;
+
+	VkDescriptorSet globalDescriptor;
+	VkDescriptorSet objectSetLayout;
 };
 
 constexpr uint32_t FRAME_OVERLAP = 3;
@@ -83,12 +107,10 @@ public:
 	VkInstance instance;
 	VkDebugUtilsMessengerEXT debugMessenger;
 	VkPhysicalDevice gpu;
+	VkPhysicalDeviceProperties gpuProperties;
 	VkDevice device;
 
 	std::vector<FrameData> frames;
-
-	VkSemaphore presentSemaphore, renderSemaphore;
-	VkFence renderFence;
 
 	VkQueue graphicsQueue;
 	uint32_t graphicsQueueFamily;
@@ -105,30 +127,23 @@ public:
 
 	DeletionQueue mainDeletionQueue;
 
-	VkCommandPool commandPool;
-	VkCommandBuffer mainCommandBuffer;
-
 	VmaAllocator allocator;
 
 	VkImageView depthImageView;
 	AllocatedImage depthImage;
 	VkFormat depthFormat;
 
-	VkPipelineLayout trianglePipelineLayout;
-	VkPipelineLayout meshPipelineLayout;
+	VkDescriptorPool descriptorPool;
+	VkDescriptorSetLayout globalSetLayout;
+	VkDescriptorSetLayout objectSetLayout;
 
-	VkPipeline trianglePipeline;
-	VkPipeline redTrianglePipeline;
-	VkPipeline meshPipeline;
-
-	Mesh triangleMesh;
-	Mesh monkeyMesh;
+	GPUSceneData sceneParameters;
+	AllocatedBuffer sceneParameterBuffer;
 
 	std::vector<RenderObject> renderables;
 	std::unordered_map<std::string, Material> materials;
 	std::unordered_map<std::string, Mesh> meshes;
 
-	
 	//initializes everything in the engine
 	void init();
 
@@ -157,6 +172,8 @@ private:
 
 	void InitSyncStructures();
 
+	void InitDescriptors();
+
 	void InitPipelines();
 
 	void InitScene();
@@ -175,6 +192,9 @@ private:
 
 	void DrawObjects(VkCommandBuffer cmd, RenderObject* first, int count);
 
+	AllocatedBuffer CreateBuffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage);
+
+	size_t PadUniformBufferSize(size_t originalSize);
 };
 
 
