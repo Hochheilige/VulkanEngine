@@ -87,7 +87,7 @@ struct FrameData {
 	AllocatedBuffer objectBuffer;
 
 	VkDescriptorSet globalDescriptor;
-	VkDescriptorSet objectSetLayout;
+	VkDescriptorSet objectDescriptor;
 };
 
 constexpr uint32_t FRAME_OVERLAP = 3;
