@@ -4,17 +4,14 @@
 #pragma once
 
 #include <vulkan/vulkan.h>
-#include <vulkan/vulkan.hpp>
-
 #include <vk_mem_alloc.h>
 
 struct AllocatedBuffer {
-	VkBuffer buffer;
-	VmaAllocation allocation;
+	VkBuffer _buffer;
+	VmaAllocation _allocation;
 };
 
 struct AllocatedImage {
-	VkImage image;
-	VmaAllocation allocation;
+	VkImage _image;
+	VmaAllocation _allocation;
 };
-
