@@ -200,7 +200,7 @@ VkImageViewCreateInfo vkinit::ImageviewCreateInfo(VkFormat format, VkImage image
     info.subresourceRange.baseMipLevel = 0;
     info.subresourceRange.layerCount = 1;
     info.subresourceRange.baseArrayLayer = 0;
-    info.subresourceRange.layerCount = 1;
+    info.subresourceRange.levelCount = 1;
     info.subresourceRange.aspectMask = aspectFlags;
 
     return info;

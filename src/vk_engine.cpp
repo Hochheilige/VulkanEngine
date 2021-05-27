@@ -1,19 +1,18 @@
-﻿
-#include <vk_engine.h>
+﻿#include <vk_engine.h>
+
+#define VMA_IMPLEMENTATION
+#include <vk_mem_alloc.h>
 
 #include <SDL.h>
 #include <SDL_vulkan.h>
 
 #include <vk_types.h>
 #include <vk_initializers.h>
-
 #include <VkBootstrap.h>
+#include <vk_textures.h>
 
 #include <iostream>
 #include <fstream>
-
-#define VMA_IMPLEMENTATION
-#include <vk_mem_alloc.h>
 
 #define VK_CHECK(x)                                                     \
 	do {                                                                \
@@ -58,8 +57,9 @@ void VulkanEngine::init()
 	InitDescriptors();
 	InitPipelines();
 
+	LoadImages();
 	LoadMeshes();
-
+	
 	InitScene();
 
 	//everything went fine
@@ -279,6 +279,13 @@ void VulkanEngine::InitCommands() {
 			vkDestroyCommandPool(device, frames[i].commandPool, nullptr);
 		});
 	}
+
+	VkCommandPoolCreateInfo uploadCommandPoolInfo = vkinit::CommandPoolCreateInfo(graphicsQueueFamily);
+	VK_CHECK(vkCreateCommandPool(device, &uploadCommandPoolInfo, nullptr, &uploadContext.commandPool));
+
+	mainDeletionQueue.pushFunction([=]() {
+		vkDestroyCommandPool(device, uploadContext.commandPool, nullptr);
+	});
 }
 
 void VulkanEngine::InitDefaultRenderpass() {
@@ -388,6 +395,12 @@ void VulkanEngine::InitSyncStructures() {
 			vkDestroySemaphore(device, frames[i].renderSemaphore, nullptr);
 		});
 	}
+
+	VkFenceCreateInfo uploadFenceCreateInfo = vkinit::FenceCreateInfo();
+	VK_CHECK(vkCreateFence(device, &uploadFenceCreateInfo, nullptr, &uploadContext.uploadFence));
+	mainDeletionQueue.pushFunction([=]() {
+		vkDestroyFence(device, uploadContext.uploadFence, nullptr);
+	});
 }
 
 void VulkanEngine::InitPipelines() {
@@ -484,6 +497,26 @@ bool VulkanEngine::LoadShaderModule(const char* filePath, VkShaderModule* outSha
 
 	*outShaderModule = shaderModule;
 	return true;
+}
+
+void VulkanEngine::ImmediateSubmit(std::function<void(VkCommandBuffer cmd)>&& function) {
+	VkCommandBufferAllocateInfo cmdAllocInfo = vkinit::CommandBufferAllocateInfo(uploadContext.commandPool, 1);
+	VkCommandBuffer cmd;
+	VK_CHECK(vkAllocateCommandBuffers(device, &cmdAllocInfo, &cmd));
+
+	VkCommandBufferBeginInfo cmdBeginInfo = vkinit::CommandBufferBeginInfo(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+	VK_CHECK(vkBeginCommandBuffer(cmd, &cmdBeginInfo));
+	function(cmd);
+	VK_CHECK(vkEndCommandBuffer(cmd));
+
+	VkSubmitInfo submit = vkinit::SubmitInfo(&cmd);
+	VK_CHECK(vkQueueSubmit(graphicsQueue, 1, &submit, uploadContext.uploadFence));
+
+	vkWaitForFences(device, 1, &uploadContext.uploadFence, true, 9999999999);
+	vkResetFences(device, 1, &uploadContext.uploadFence);
+
+	vkResetCommandPool(device, uploadContext.commandPool, 0);
+
 }
 
 void VulkanEngine::InitDescriptors() {
@@ -659,24 +692,48 @@ void VulkanEngine::LoadMeshes() {
 }
 
 void VulkanEngine::UploadMesh(Mesh& mesh) {
-	VkBufferCreateInfo bufferInfo = {};
-	bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-	bufferInfo.size = mesh.vertices.size() * sizeof(Vertex);
-	bufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+	const size_t bufferSize = mesh.vertices.size() * sizeof(Vertex);
+	VkBufferCreateInfo stagingBufferInfo = {};
+	stagingBufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+	stagingBufferInfo.pNext = nullptr;
+	stagingBufferInfo.size = bufferSize;
+	stagingBufferInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
 
 	VmaAllocationCreateInfo vmaallocInfo = {};
-	vmaallocInfo.usage = VMA_MEMORY_USAGE_CPU_TO_GPU;
+	vmaallocInfo.usage = VMA_MEMORY_USAGE_CPU_ONLY;
 
-	VK_CHECK(vmaCreateBuffer(allocator, &bufferInfo, &vmaallocInfo, &mesh.vertexBuffer.buffer, &mesh.vertexBuffer.allocation, nullptr));
+	AllocatedBuffer stagingBuffer;
+
+	VK_CHECK(vmaCreateBuffer(allocator, &stagingBufferInfo, &vmaallocInfo, &stagingBuffer.buffer, &stagingBuffer.allocation, nullptr));
+
+	void* data;
+	vmaMapMemory(allocator, stagingBuffer.allocation, &data);
+	memcpy(data, mesh.vertices.data(), mesh.vertices.size() * sizeof(Vertex));
+	vmaUnmapMemory(allocator, stagingBuffer.allocation);
+
+	VkBufferCreateInfo vertexBufferInfo = {};
+	vertexBufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+	vertexBufferInfo.pNext = nullptr;
+	vertexBufferInfo.size = bufferSize;
+	vertexBufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+
+	vmaallocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+
+	VK_CHECK(vmaCreateBuffer(allocator, &vertexBufferInfo, &vmaallocInfo, &mesh.vertexBuffer.buffer, &mesh.vertexBuffer.allocation, nullptr));
 
 	mainDeletionQueue.pushFunction([=]() {
 		vmaDestroyBuffer(allocator, mesh.vertexBuffer.buffer, mesh.vertexBuffer.allocation);
 	});
 
-	void* data;
-	vmaMapMemory(allocator, mesh.vertexBuffer.allocation, &data);
-	memcpy(data, mesh.vertices.data(), mesh.vertices.size() * sizeof(Vertex));
-	vmaUnmapMemory(allocator, mesh.vertexBuffer.allocation);
+	ImmediateSubmit([=](VkCommandBuffer cmd) {
+		VkBufferCopy copy;
+		copy.dstOffset = 0;
+		copy.srcOffset = 0;
+		copy.size = bufferSize;
+		vkCmdCopyBuffer(cmd, stagingBuffer.buffer, mesh.vertexBuffer.buffer, 1, &copy);
+	});
+
+	vmaDestroyBuffer(allocator, stagingBuffer.buffer, stagingBuffer.allocation);
 }
 
 void VulkanEngine::InitScene() {
@@ -739,6 +796,20 @@ Mesh* VulkanEngine::GetMesh(const std::string& name) {
 		return nullptr;
 
 	return &it->second;
+}
+
+void VulkanEngine::LoadImages() {
+	Texture lostEmpire;
+	vkutil::LoadImageFromFile(*this, "../assets/lost_empire-RGBA.png", lostEmpire.image);
+
+	VkImageViewCreateInfo imageInfo = vkinit::ImageviewCreateInfo(VK_FORMAT_R8G8B8A8_SRGB, lostEmpire.image.image, VK_IMAGE_ASPECT_COLOR_BIT);
+	vkCreateImageView(device, &imageInfo, nullptr, &lostEmpire.imageView);
+
+	mainDeletionQueue.pushFunction([=]() {
+		vkDestroyImageView(device, lostEmpire.imageView, nullptr);
+	});
+
+	loadedTextures["empire_diffuse"] = lostEmpire;
 }
 
 void VulkanEngine::DrawObjects(VkCommandBuffer cmd, RenderObject* first, int count) {
@@ -813,14 +884,4 @@ size_t VulkanEngine::PadUniformBufferSize(size_t originalSize) {
 	return alignedSize;
 }
 
-void DeletionQueue::pushFunction(std::function<void()>&& function) {
-	deletors.push_back(function);
-}
 
-void DeletionQueue::flush(){
-	for (auto it = deletors.rbegin(); it != deletors.rend(); ++it) {
-		(*it)();
-	}
-
-	deletors.clear();
-}

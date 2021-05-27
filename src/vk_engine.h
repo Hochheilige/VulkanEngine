@@ -6,13 +6,13 @@
 #include <vk_types.h>
 #include <vk_mesh.h>
 
-#include <glm/glm.hpp>
-#include <glm/gtx/transform.hpp>
-
 #include <vector>
 #include <deque>
 #include <unordered_map>
 #include <functional>
+
+#include <glm/glm.hpp>
+#include <glm/gtx/transform.hpp>
 
 class PipelineBuilder {
 public:
@@ -36,11 +36,19 @@ private:
 };
 
 struct DeletionQueue {
-	std::deque<std::function<void()>> deletors;
+	std::vector<std::function<void()>> deletors;
 
-	void pushFunction(std::function<void()>&& function);
+	void DeletionQueue::pushFunction(std::function<void()>&& function) {
+		deletors.push_back(function);
+	}
 
-	void flush();
+	void DeletionQueue::flush() {
+		for (auto it = deletors.rbegin(); it != deletors.rend(); ++it) {
+			(*it)();
+		}
+
+		deletors.clear();
+	}
 };
 
 struct MeshPushConstants {
@@ -91,6 +99,16 @@ struct FrameData {
 };
 
 constexpr uint32_t FRAME_OVERLAP = 3;
+
+struct UploadContext {
+	VkFence uploadFence;
+	VkCommandPool commandPool;
+};
+
+struct Texture {
+	AllocatedImage image;
+	VkImageView imageView;
+};
 
 class VulkanEngine {
 public:
@@ -143,6 +161,9 @@ public:
 	std::vector<RenderObject> renderables;
 	std::unordered_map<std::string, Material> materials;
 	std::unordered_map<std::string, Mesh> meshes;
+	std::unordered_map<std::string, Texture> loadedTextures;
+
+	UploadContext uploadContext;
 
 	//initializes everything in the engine
 	void init();
@@ -157,6 +178,12 @@ public:
 	void run();
 
 	FrameData& GetCurrentFrame();
+
+	void ImmediateSubmit(std::function<void(VkCommandBuffer cmd)>&& function);
+
+	AllocatedBuffer CreateBuffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage);
+
+	void LoadImages();
 
 private:
 
@@ -192,7 +219,7 @@ private:
 
 	void DrawObjects(VkCommandBuffer cmd, RenderObject* first, int count);
 
-	AllocatedBuffer CreateBuffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage);
+	
 
 	size_t PadUniformBufferSize(size_t originalSize);
 };
