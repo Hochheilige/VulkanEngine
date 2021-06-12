@@ -613,6 +613,7 @@ int main(int argc, char* argv[]) {
 		assert(currentBuffer.value < framebuffers.size());
 
 		std::array<vk::ClearValue, 2> clearValues;
+		// random colors to window color
 		srand(time(nullptr));
 		float redFlash = abs(sin(rand() / 120.0f));
 		float greenFlash = abs(sin(rand() / 120.0f));
