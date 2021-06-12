@@ -788,7 +788,7 @@ int main(int argc, char* argv[]) {
 
 		data = static_cast<uint8_t*>(device.mapMemory(uniformDataMemory, 0, uniformMemoryReq.size));
 		memcpy(data, &mvpc, sizeof(mvpc));
-		//device.unmapMemory(uniformDataMemory);
+		device.unmapMemory(uniformDataMemory);
 
 		commandBuffer.begin(vk::CommandBufferBeginInfo(vk::CommandBufferUsageFlags()));
 
