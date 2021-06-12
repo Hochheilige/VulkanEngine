@@ -16,3 +16,4 @@ bld/
 # Add this line
 out/
 .vs/
+SDL2/
