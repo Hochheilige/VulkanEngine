@@ -8,36 +8,116 @@
 #include <glm/gtc/matrix_transform.hpp>
 
 #include <stdio.h>
+#include <fstream>
 #include <vector>
 #include <algorithm>
 
-const std::string vertexShaderText_PC_C = R"(
-	#version 400
-	#extension GL_ARB_separate_shader_objects : enable
-	#extension GL_ARB_shading_language_420pack : enable
-	layout (std140, binding = 0) uniform buffer
-	{
-	  mat4 mvp;
-	} uniformBuffer;
-	layout (location = 0) in vec4 pos;
-	layout (location = 1) in vec4 inColor;
-	layout (location = 0) out vec4 outColor;
-	void main() {
-	  outColor = inColor;
-	  gl_Position = uniformBuffer.mvp * pos;
-	}
-)";
 
-const std::string fragmentShaderText_C_C = R"(
-	#version 400
-	#extension GL_ARB_separate_shader_objects : enable
-	#extension GL_ARB_shading_language_420pack : enable
-	layout (location = 0) in vec4 color;
-	layout (location = 0) out vec4 outColor;
-	void main() {
-	  outColor = color;
-	}
-)";
+// Extra stuff to render a cube (hardcoded vertexes)
+struct VertexPC
+{
+	float x, y, z, w;   // Position
+	float r, g, b, a;   // Color
+};
+
+struct VertexPT
+{
+	float x, y, z, w;   // Position data
+	float u, v;         // texture u,v
+};
+
+
+static const VertexPC coloredCubeData[] =
+{
+	// red face
+	{ -1.0f, -1.0f,  1.0f, 1.0f,    1.0f, 0.0f, 0.0f, 1.0f },
+	{ -1.0f,  1.0f,  1.0f, 1.0f,    1.0f, 0.0f, 0.0f, 1.0f },
+	{  1.0f, -1.0f,  1.0f, 1.0f,    1.0f, 0.0f, 0.0f, 1.0f },
+	{  1.0f, -1.0f,  1.0f, 1.0f,    1.0f, 0.0f, 0.0f, 1.0f },
+	{ -1.0f,  1.0f,  1.0f, 1.0f,    1.0f, 0.0f, 0.0f, 1.0f },
+	{  1.0f,  1.0f,  1.0f, 1.0f,    1.0f, 0.0f, 0.0f, 1.0f },
+	// green face
+	{ -1.0f, -1.0f, -1.0f, 1.0f,    0.0f, 1.0f, 0.0f, 1.0f },
+	{  1.0f, -1.0f, -1.0f, 1.0f,    0.0f, 1.0f, 0.0f, 1.0f },
+	{ -1.0f,  1.0f, -1.0f, 1.0f,    0.0f, 1.0f, 0.0f, 1.0f },
+	{ -1.0f,  1.0f, -1.0f, 1.0f,    0.0f, 1.0f, 0.0f, 1.0f },
+	{  1.0f, -1.0f, -1.0f, 1.0f,    0.0f, 1.0f, 0.0f, 1.0f },
+	{  1.0f,  1.0f, -1.0f, 1.0f,    0.0f, 1.0f, 0.0f, 1.0f },
+	// blue face
+	{ -1.0f,  1.0f,  1.0f, 1.0f,    0.0f, 0.0f, 1.0f, 1.0f },
+	{ -1.0f, -1.0f,  1.0f, 1.0f,    0.0f, 0.0f, 1.0f, 1.0f },
+	{ -1.0f,  1.0f, -1.0f, 1.0f,    0.0f, 0.0f, 1.0f, 1.0f },
+	{ -1.0f,  1.0f, -1.0f, 1.0f,    0.0f, 0.0f, 1.0f, 1.0f },
+	{ -1.0f, -1.0f,  1.0f, 1.0f,    0.0f, 0.0f, 1.0f, 1.0f },
+	{ -1.0f, -1.0f, -1.0f, 1.0f,    0.0f, 0.0f, 1.0f, 1.0f },
+	// yellow face
+	{  1.0f,  1.0f,  1.0f, 1.0f,    1.0f, 1.0f, 0.0f, 1.0f },
+	{  1.0f,  1.0f, -1.0f, 1.0f,    1.0f, 1.0f, 0.0f, 1.0f },
+	{  1.0f, -1.0f,  1.0f, 1.0f,    1.0f, 1.0f, 0.0f, 1.0f },
+	{  1.0f, -1.0f,  1.0f, 1.0f,    1.0f, 1.0f, 0.0f, 1.0f },
+	{  1.0f,  1.0f, -1.0f, 1.0f,    1.0f, 1.0f, 0.0f, 1.0f },
+	{  1.0f, -1.0f, -1.0f, 1.0f,    1.0f, 1.0f, 0.0f, 1.0f },
+	// magenta face
+	{  1.0f,  1.0f,  1.0f, 1.0f,    1.0f, 0.0f, 1.0f, 1.0f },
+	{ -1.0f,  1.0f,  1.0f, 1.0f,    1.0f, 0.0f, 1.0f, 1.0f },
+	{  1.0f,  1.0f, -1.0f, 1.0f,    1.0f, 0.0f, 1.0f, 1.0f },
+	{  1.0f,  1.0f, -1.0f, 1.0f,    1.0f, 0.0f, 1.0f, 1.0f },
+	{ -1.0f,  1.0f,  1.0f, 1.0f,    1.0f, 0.0f, 1.0f, 1.0f },
+	{ -1.0f,  1.0f, -1.0f, 1.0f,    1.0f, 0.0f, 1.0f, 1.0f },
+	// cyan face
+	{  1.0f, -1.0f,  1.0f, 1.0f,    0.0f, 1.0f, 1.0f, 1.0f },
+	{  1.0f, -1.0f, -1.0f, 1.0f,    0.0f, 1.0f, 1.0f, 1.0f },
+	{ -1.0f, -1.0f,  1.0f, 1.0f,    0.0f, 1.0f, 1.0f, 1.0f },
+	{ -1.0f, -1.0f,  1.0f, 1.0f,    0.0f, 1.0f, 1.0f, 1.0f },
+	{  1.0f, -1.0f, -1.0f, 1.0f,    0.0f, 1.0f, 1.0f, 1.0f },
+	{ -1.0f, -1.0f, -1.0f, 1.0f,    0.0f, 1.0f, 1.0f, 1.0f },
+};
+
+static const VertexPT texturedCubeData[] =
+{
+	// left face
+	{ -1.0f, -1.0f, -1.0f, 1.0f,    1.0f, 0.0f },
+	{ -1.0f,  1.0f,  1.0f, 1.0f,    0.0f, 1.0f },
+	{ -1.0f, -1.0f,  1.0f, 1.0f,    0.0f, 0.0f },
+	{ -1.0f,  1.0f,  1.0f, 1.0f,    0.0f, 1.0f },
+	{ -1.0f, -1.0f, -1.0f, 1.0f,    1.0f, 0.0f },
+	{ -1.0f,  1.0f, -1.0f, 1.0f,    1.0f, 1.0f },
+	// front face
+	{ -1.0f, -1.0f, -1.0f, 1.0f,    0.0f, 0.0f },
+	{  1.0f, -1.0f, -1.0f, 1.0f,    1.0f, 0.0f },
+	{  1.0f,  1.0f, -1.0f, 1.0f,    1.0f, 1.0f },
+	{ -1.0f, -1.0f, -1.0f, 1.0f,    0.0f, 0.0f },
+	{  1.0f,  1.0f, -1.0f, 1.0f,    1.0f, 1.0f },
+	{ -1.0f,  1.0f, -1.0f, 1.0f,    0.0f, 1.0f },
+	// top face
+	{ -1.0f, -1.0f, -1.0f, 1.0f,    0.0f, 1.0f },
+	{  1.0f, -1.0f,  1.0f, 1.0f,    1.0f, 0.0f },
+	{  1.0f, -1.0f, -1.0f, 1.0f,    1.0f, 1.0f },
+	{ -1.0f, -1.0f, -1.0f, 1.0f,    0.0f, 1.0f },
+	{ -1.0f, -1.0f,  1.0f, 1.0f,    0.0f, 0.0f },
+	{  1.0f, -1.0f, -1.0f, 1.0f,    1.0f, 0.0f },
+	// bottom face
+	{ -1.0f,  1.0f, -1.0f, 1.0f,    0.0f, 0.0f },
+	{  1.0f,  1.0f,  1.0f, 1.0f,    1.0f, 1.0f },
+	{ -1.0f,  1.0f,  1.0f, 1.0f,    0.0f, 1.0f },
+	{ -1.0f,  1.0f, -1.0f, 1.0f,    0.0f, 0.0f },
+	{  1.0f,  1.0f, -1.0f, 1.0f,    1.0f, 0.0f },
+	{  1.0f,  1.0f,  1.0f, 1.0f,    1.0f, 1.0f },
+	// right face
+	{  1.0f,  1.0f, -1.0f, 1.0f,    0.0f, 1.0f },
+	{  1.0f, -1.0f,  1.0f, 1.0f,    1.0f, 0.0f },
+	{  1.0f,  1.0f,  1.0f, 1.0f,    1.0f, 1.0f },
+	{  1.0f, -1.0f,  1.0f, 1.0f,    1.0f, 0.0f },
+	{  1.0f,  1.0f, -1.0f, 1.0f,    0.0f, 1.0f },
+	{  1.0f, -1.0f, -1.0f, 1.0f,    0.0f, 0.0f },
+	// back face
+	{ -1.0f,  1.0f,  1.0f, 1.0f,    1.0f, 1.0f },
+	{  1.0f,  1.0f,  1.0f, 1.0f,    0.0f, 1.0f },
+	{ -1.0f, -1.0f,  1.0f, 1.0f,    1.0f, 0.0f },
+	{ -1.0f, -1.0f,  1.0f, 1.0f,    1.0f, 0.0f },
+	{  1.0f,  1.0f,  1.0f, 1.0f,    0.0f, 1.0f },
+	{  1.0f, -1.0f,  1.0f, 1.0f,    0.0f, 0.0f },
+};
 
 static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
 	VkDebugUtilsMessageTypeFlagsEXT messageType,
@@ -45,6 +125,27 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityF
 	void* pUserData) {
 	printf("Validation layer: %s\n", pCallbackData->pMessage);
 	return VK_FALSE;
+}
+
+vk::ShaderModule loadShaderModule(const char* filePath, const vk::Device& device) {
+	std::ifstream file(filePath, std::ios::ate | std::ios::binary);
+	if (!file.is_open())
+		throw std::runtime_error("cannot open shader file");
+
+	size_t fileSize = static_cast<size_t>(file.tellg());
+	std::vector<uint32_t> buffer(fileSize / sizeof(uint32_t));
+
+	file.seekg(0);
+	file.read((char*)buffer.data(), fileSize);
+	file.close();
+
+	vk::ShaderModuleCreateInfo shaderModuleInfo(
+		vk::ShaderModuleCreateFlags(), buffer
+	);
+
+	printf("Shader module %s successfully load\n", filePath);
+
+	return device.createShaderModule(shaderModuleInfo);
 }
 
 // copy-paste this functions from khronos repo
@@ -63,6 +164,14 @@ uint32_t findMemoryType(vk::PhysicalDeviceMemoryProperties const& memoryProperti
 	}
 	assert(typeIndex != uint32_t(~0));
 	return typeIndex;
+}
+
+void submitAndWait(vk::Device const& device, vk::Queue const& queue, vk::CommandBuffer const& commandBuffer) {
+	vk::Fence fence = device.createFence(vk::FenceCreateInfo());
+	queue.submit(vk::SubmitInfo(0, nullptr, nullptr, 1, &commandBuffer), fence);
+	while (vk::Result::eTimeout == device.waitForFences(fence, VK_TRUE, 1000000000))
+		;
+	device.destroyFence(fence);
 }
 
 int main(int argc, char* argv[]) {
@@ -426,25 +535,38 @@ int main(int argc, char* argv[]) {
 		)
 	);
 
-	//glslang::InitializeProcess();
 
-	//std::vector<uint32_t> vertexShaderSPV;
-	//bool ok = GLSLtoSPV(vk::ShaderStageFlagBits::eVertex, vertexShaderText_PC_C, vertexShaderSPV);
-	//assert(ok);
+	// shader modules stuff
+	vk::ShaderModule cubeVertexShaderModule = loadShaderModule("../shaders/cube.vert.spv", device);
+	vk::ShaderModule cubeFragmentShaderModule = loadShaderModule("../shaders/cube.frag.spv", device);
 
-	//vk::ShaderModuleCreateInfo vertexShaderInfo(vk::ShaderModuleCreateFlags(), vertexShaderSPV);
-	//vk::ShaderModule vertexShader = device.createShaderModule(vertexShaderInfo);
+	// frame buffer stuff
+	std::array<vk::ImageView, 2> attachments;
+	attachments[1] = depthView;
 
-	//std::vector<uint32_t> fragmentShaderSPV;
-	//ok = GLSLtoSPV(vk::ShaderStageFlagBits::eFragment, fragmentShaderText_C_C, fragmentShaderSPV);
-	//assert(ok);
+	vk::FramebufferCreateInfo frameBufferCreateInfo(
+		vk::FramebufferCreateFlags(),
+		renderPass,
+		attachments,
+		swapchainExtent.width,
+		swapchainExtent.height,
+		1
+	);
 
-	//vk::ShaderModuleCreateInfo fragmentShaderInfo(vk::ShaderModuleCreateFlags(), fragmentShaderSPV);
-	//vk::ShaderModule fragmentShader = device.createShaderModule(fragmentShaderInfo);
+	std::vector<vk::Framebuffer> framebuffers;
+	framebuffers.reserve(imageViews.size());
+	for (const auto& imageView : imageViews) {
+		attachments[0] = imageView;
+		framebuffers.push_back(device.createFramebuffer(frameBufferCreateInfo));
+	}
 
-	//glslang::FinalizeProcess();
-
-	vk::CommandPool commandPool = device.createCommandPool(vk::CommandPoolCreateInfo(vk::CommandPoolCreateFlags(), graphicsQueueFamilyIndex));
+	// command pool and command buffer
+	vk::CommandPool commandPool = device.createCommandPool(
+		vk::CommandPoolCreateInfo(
+			vk::CommandPoolCreateFlagBits::eResetCommandBuffer,
+			graphicsQueueFamilyIndex
+		)
+	);
 
 	vk::CommandBuffer commandBuffer = device.allocateCommandBuffers(vk::CommandBufferAllocateInfo(
 		commandPool,
@@ -452,21 +574,87 @@ int main(int argc, char* argv[]) {
 		1)
 	).front();
 
-	
+	// vertex buffer
+	vk::Buffer vertexBuffer = device.createBuffer(
+		vk::BufferCreateInfo(
+			vk::BufferCreateFlags(),
+			sizeof(coloredCubeData),
+			vk::BufferUsageFlagBits::eVertexBuffer
+		)
+	);
 
+	vk::MemoryRequirements bufferMemoryRequiremenents = device.getBufferMemoryRequirements(vertexBuffer);
+	uint32_t memoryTypeIndex = findMemoryType(gpu.getMemoryProperties(), bufferMemoryRequiremenents.memoryTypeBits,
+		vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
+	vk::DeviceMemory deviceMemory = device.allocateMemory(vk::MemoryAllocateInfo(bufferMemoryRequiremenents.size, memoryTypeIndex));
+
+	data = static_cast<uint8_t*>(device.mapMemory(deviceMemory, 0, bufferMemoryRequiremenents.size));
+	memcpy(data, coloredCubeData, sizeof(coloredCubeData));
+	device.unmapMemory(deviceMemory);
+
+	device.bindBufferMemory(vertexBuffer, deviceMemory, 0);
 
 	while (!isShouldClose) {
 		while (SDL_PollEvent(&event) != 0) {
 			if (event.type == SDL_QUIT || (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE))
 				isShouldClose = true;
 		}
+
+		// Not sure that this is part of vertex buffer stuff
+		vk::Semaphore imageAcquiredSemaphore = device.createSemaphore(vk::SemaphoreCreateInfo(vk::SemaphoreCreateFlags()));
+
+		vk::ResultValue<uint32_t> currentBuffer = device.acquireNextImageKHR(
+			swapchain,
+			1000000000,
+			imageAcquiredSemaphore,
+			nullptr
+		);
+		assert(currentBuffer.result == vk::Result::eSuccess);
+		assert(currentBuffer.value < framebuffers.size());
+
+		std::array<vk::ClearValue, 2> clearValues;
+		srand(time(nullptr));
+		float redFlash = abs(sin(rand() / 120.0f));
+		float greenFlash = abs(sin(rand() / 120.0f));
+		float blueFlash = abs(sin(rand() / 120.0f));
+		float alphaFlash = abs(sin(rand() / 120.0f));
+		clearValues[0].color = vk::ClearColorValue(std::array<float, 4>({ {redFlash, greenFlash, blueFlash, alphaFlash} }));
+		clearValues[1].depthStencil = vk::ClearDepthStencilValue(1.0f, 0);
+
+		commandBuffer.begin(vk::CommandBufferBeginInfo(vk::CommandBufferUsageFlags()));
+
+		vk::RenderPassBeginInfo renderPassBeginInfo(
+			renderPass,
+			framebuffers[currentBuffer.value],
+			vk::Rect2D(vk::Offset2D(0, 0), swapchainExtent),
+			clearValues
+		);
+
+		commandBuffer.beginRenderPass(renderPassBeginInfo, vk::SubpassContents::eInline);
+
+		
+		commandBuffer.bindVertexBuffers(0, vertexBuffer, { 0 });
+
+		commandBuffer.endRenderPass();
+		commandBuffer.end();
+
+		submitAndWait(device, graphicsQueue, commandBuffer);
+		graphicsQueue.presentKHR(vk::PresentInfoKHR({}, swapchain, currentBuffer.value));
+		device.destroySemaphore(imageAcquiredSemaphore);
 	}
+	
+	device.freeMemory(deviceMemory);
+	device.destroyBuffer(vertexBuffer);
 
 	device.freeCommandBuffers(commandPool, commandBuffer);
 	device.destroyCommandPool(commandPool);
 
-	/*device.destroyShaderModule(fragmentShader);
-	device.destroyShaderModule(vertexShader);*/
+	for (const auto& framebuffer : framebuffers) {
+		device.destroyFramebuffer(framebuffer);
+	}
+
+	device.destroyShaderModule(cubeFragmentShaderModule);
+	device.destroyShaderModule(cubeVertexShaderModule);
 	
 	device.destroyRenderPass(renderPass);
 
