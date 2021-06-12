@@ -2,10 +2,42 @@
 #include <SDL_vulkan.h>
 
 #include <vulkan/vulkan.hpp>
+#include <glslang/SPIRV/GlslangToSpv.h>
+
+#define GLM_FORCE_RADIANS
+#include <glm/gtc/matrix_transform.hpp>
 
 #include <stdio.h>
 #include <vector>
 #include <algorithm>
+
+const std::string vertexShaderText_PC_C = R"(
+	#version 400
+	#extension GL_ARB_separate_shader_objects : enable
+	#extension GL_ARB_shading_language_420pack : enable
+	layout (std140, binding = 0) uniform buffer
+	{
+	  mat4 mvp;
+	} uniformBuffer;
+	layout (location = 0) in vec4 pos;
+	layout (location = 1) in vec4 inColor;
+	layout (location = 0) out vec4 outColor;
+	void main() {
+	  outColor = inColor;
+	  gl_Position = uniformBuffer.mvp * pos;
+	}
+)";
+
+const std::string fragmentShaderText_C_C = R"(
+	#version 400
+	#extension GL_ARB_separate_shader_objects : enable
+	#extension GL_ARB_shading_language_420pack : enable
+	layout (location = 0) in vec4 color;
+	layout (location = 0) out vec4 outColor;
+	void main() {
+	  outColor = color;
+	}
+)";
 
 static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
 	VkDebugUtilsMessageTypeFlagsEXT messageType,
@@ -13,6 +45,24 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityF
 	void* pUserData) {
 	printf("Validation layer: %s\n", pCallbackData->pMessage);
 	return VK_FALSE;
+}
+
+// copy-paste this functions from khronos repo
+
+uint32_t findMemoryType(vk::PhysicalDeviceMemoryProperties const& memoryProperties, uint32_t typeBits, vk::MemoryPropertyFlags requirementsMask) {
+	uint32_t typeIndex = uint32_t(~0);
+	for (uint32_t i = 0; i < memoryProperties.memoryTypeCount; i++)
+	{
+		if ((typeBits & 1) &&
+			((memoryProperties.memoryTypes[i].propertyFlags & requirementsMask) == requirementsMask))
+		{
+			typeIndex = i;
+			break;
+		}
+		typeBits >>= 1;
+	}
+	assert(typeIndex != uint32_t(~0));
+	return typeIndex;
 }
 
 int main(int argc, char* argv[]) {
@@ -46,7 +96,7 @@ int main(int argc, char* argv[]) {
 	};
 	size_t additionalExtensionsSize = instanceExtensions.size();
 	instanceExtensions.resize(instanceExtensions.size() + sdlExtensionsCount);
-	SDL_bool ress = SDL_Vulkan_GetInstanceExtensions(window, &sdlExtensionsCount, instanceExtensions.data() + additionalExtensionsSize);
+	SDL_Vulkan_GetInstanceExtensions(window, &sdlExtensionsCount, instanceExtensions.data() + additionalExtensionsSize);
 
 	vk::ApplicationInfo appInfo = { "VulkanEngineApp", 1, "VulkanEngine", 1, VK_API_VERSION_1_1 };
 	vk::InstanceCreateInfo instanceInfo = { {}, &appInfo };
@@ -112,16 +162,18 @@ int main(int argc, char* argv[]) {
 		)
 	);
 
+	vk::Queue graphicsQueue = device.getQueue(graphicsQueueFamilyIndex, 0);
+
 	std::vector<vk::SurfaceFormatKHR> formats = gpu.getSurfaceFormatsKHR(surface);
 
 	// TODO: should check is there more than 1 formats and is it define
-	vk::Format format = formats.front().format;
+	vk::Format format = formats.front().format; // is this color format???
 
 	// TODO: read about surface capabilities
 	vk::SurfaceCapabilitiesKHR surfaceCapabilities = gpu.getSurfaceCapabilitiesKHR(surface);
 
 	// TODO: read about Extent2D
-	VkExtent2D swapchainExtent = surfaceCapabilities.currentExtent;
+	vk::Extent2D swapchainExtent = surfaceCapabilities.currentExtent;
 
 	// TODO: clarify present modes
 	vk::PresentModeKHR swapchainPresentMode = vk::PresentModeKHR::eFifo;
@@ -165,7 +217,7 @@ int main(int argc, char* argv[]) {
 		true,
 		nullptr
 	);
-
+	
 	vk::SwapchainKHR swapchain = device.createSwapchainKHR(swapchainInfo);
 
 	std::vector<vk::Image> swapchainImages = device.getSwapchainImagesKHR(swapchain);
@@ -194,6 +246,204 @@ int main(int argc, char* argv[]) {
 		imageViews.push_back(device.createImageView(imageViewCreateInfo));
 	}
 
+	const vk::Format depthFormat = vk::Format::eD16Unorm;
+	vk::FormatProperties formatProperties = gpu.getFormatProperties(depthFormat);
+
+	// TODO: tiling??????
+	vk::ImageTiling tiling;
+	if (formatProperties.linearTilingFeatures & vk::FormatFeatureFlagBits::eDepthStencilAttachment) {
+		tiling = vk::ImageTiling::eLinear;
+	}
+	else if (formatProperties.optimalTilingFeatures & vk::FormatFeatureFlagBits::eDepthStencilAttachment) {
+		tiling = vk::ImageTiling::eOptimal;
+	}
+	else {
+		throw std::runtime_error("DepthStencilAttachment is not supported for D16Unorm depth format.");
+	}
+
+	vk::ImageCreateInfo imageInfo(
+		vk::ImageCreateFlags(),
+		vk::ImageType::e2D,
+		depthFormat,
+		vk::Extent3D(swapchainExtent, 1),
+		1, 1,
+		vk::SampleCountFlagBits::e1,
+		tiling,
+		vk::ImageUsageFlagBits::eDepthStencilAttachment
+	);
+
+	vk::Image depthImage = device.createImage(imageInfo);
+
+	// TODO: Dealing with memory allocation in Vulkan
+	vk::PhysicalDeviceMemoryProperties memoryProperties = gpu.getMemoryProperties();
+	vk::MemoryRequirements memoryRequirements = device.getImageMemoryRequirements(depthImage);
+	uint32_t typeBits = memoryRequirements.memoryTypeBits;
+	uint32_t typeIndex = findMemoryType(memoryProperties, typeBits, vk::MemoryPropertyFlagBits::eDeviceLocal);
+
+	// This part probably clear
+	vk::DeviceMemory depthMemory = device.allocateMemory(vk::MemoryAllocateInfo(memoryRequirements.size, typeIndex));
+	device.bindImageMemory(depthImage, depthMemory, 0);
+
+	// TODO: what is component mapping and subresource range (2)
+	vk::ImageSubresourceRange depthSubResourceRange(vk::ImageAspectFlagBits::eDepth, 0, 1, 0, 1);
+
+	vk::ImageView depthView = device.createImageView(
+		vk::ImageViewCreateInfo(
+			vk::ImageViewCreateFlags(),
+			depthImage,
+			vk::ImageViewType::e2D,
+			depthFormat, 
+			componentMapping,
+			depthSubResourceRange
+		)
+	);
+
+	// Uniform buffer data
+	glm::mat4x4 model = glm::mat4x4(1.0f);
+	glm::mat4x4 view = glm::lookAt(
+		glm::vec3(-5.0f, 3.0f, -10.0f),
+		glm::vec3(0.0f, 0.0f, 0.0f),
+		glm::vec3(0.0f, -1.0f, 0.0f)
+	);
+	glm::mat4x4 projection = glm::perspective(glm::radians(45.0f), 1.0f, 0.1f, 100.0f);
+	glm::mat4x4 clip = glm::mat4x4(
+		1.0f,  0.0f, 0.0f, 0.0f,
+		0.0f, -1.0f, 0.0f, 0.0f,
+		0.0f,  0.0f, 0.5f, 0.0f,
+		0.0f,  0.0f, 0.5f, 1.0f
+	);
+	glm::mat4x4 mvpc = clip * projection * view * model;
+
+	vk::Buffer uniformDataBuffer = device.createBuffer(
+		vk::BufferCreateInfo(vk::BufferCreateFlags(), sizeof(mvpc), vk::BufferUsageFlagBits::eUniformBuffer)
+	);
+	
+	vk::MemoryRequirements uniformMemoryReq = device.getBufferMemoryRequirements(uniformDataBuffer);
+	uint32_t uniformTypeIndex = findMemoryType(
+		memoryProperties, 
+		uniformMemoryReq.memoryTypeBits,
+		vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent
+	);
+
+	vk::DeviceMemory uniformDataMemory = device.allocateMemory(vk::MemoryAllocateInfo(uniformMemoryReq.size, uniformTypeIndex));
+
+	uint8_t* data = static_cast<uint8_t*>(device.mapMemory(uniformDataMemory, 0, uniformMemoryReq.size));
+	memcpy(data, &mvpc, sizeof(mvpc));
+	device.unmapMemory(uniformDataMemory);
+
+	device.bindBufferMemory(uniformDataBuffer, uniformDataMemory, 0);
+
+	// TODO: make sure what is descriptor set need for
+	// Descriptor set stuff and pipelineLayout
+	vk::DescriptorSetLayoutBinding descriptorSetLayoutBinding(
+		/* bindings ?? */ 0,
+		vk::DescriptorType::eUniformBuffer,
+		/* descriptor count */ 1,
+		vk::ShaderStageFlagBits::eVertex
+	);
+
+	vk::DescriptorSetLayout descriptorSetLayout = device.createDescriptorSetLayout(
+		vk::DescriptorSetLayoutCreateInfo(vk::DescriptorSetLayoutCreateFlags(), descriptorSetLayoutBinding)
+	);
+	
+	vk::PipelineLayout pipelineLayout = device.createPipelineLayout(
+		vk::PipelineLayoutCreateInfo(vk::PipelineLayoutCreateFlags(), descriptorSetLayout)
+	);
+
+	// Descriptor pool loool
+	vk::DescriptorPoolSize poolSize(vk::DescriptorType::eUniformBuffer, 1);
+	vk::DescriptorPool descriptorPool = device.createDescriptorPool(
+		vk::DescriptorPoolCreateInfo(
+			vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet,
+			/* maxSets */1, 
+			poolSize
+		)
+	);
+
+	// allocate a desriptor set
+	vk::DescriptorSetAllocateInfo descriptorSetAllocateInfo(descriptorPool, descriptorSetLayout);
+	vk::DescriptorSet descriptorSet = device.allocateDescriptorSets(descriptorSetAllocateInfo).front();
+
+	// descriptor buffer (what a....)
+	vk::DescriptorBufferInfo descriptorBufferInfo(
+		uniformDataBuffer,
+		/* offset */ 0,
+		/* range  */ sizeof(glm::mat4x4)
+	);
+
+	vk::WriteDescriptorSet writeDescriptorSet(
+		descriptorSet,
+		0,
+		0,
+		vk::DescriptorType::eUniformBuffer,
+		{},
+		descriptorBufferInfo
+	);
+	device.updateDescriptorSets(writeDescriptorSet, nullptr);
+
+	// TODO: read about attachment description
+	std::array<vk::AttachmentDescription, 2> attachmentDescriptions;
+	attachmentDescriptions[0] = vk::AttachmentDescription(
+		vk::AttachmentDescriptionFlags(),
+		format,
+		vk::SampleCountFlagBits::e1,
+		vk::AttachmentLoadOp::eClear,
+		vk::AttachmentStoreOp::eStore,
+		vk::AttachmentLoadOp::eDontCare,
+		vk::AttachmentStoreOp::eDontCare,
+		vk::ImageLayout::eUndefined,
+		vk::ImageLayout::ePresentSrcKHR
+	);
+	attachmentDescriptions[1] = vk::AttachmentDescription(
+		vk::AttachmentDescriptionFlags(),
+		depthFormat,
+		vk::SampleCountFlagBits::e1,
+		vk::AttachmentLoadOp::eClear,
+		vk::AttachmentStoreOp::eDontCare,
+		vk::AttachmentLoadOp::eDontCare,
+		vk::AttachmentStoreOp::eDontCare,
+		vk::ImageLayout::eUndefined,
+		vk::ImageLayout::eDepthStencilAttachmentOptimal
+	);
+
+	vk::AttachmentReference colorReference(0, vk::ImageLayout::eColorAttachmentOptimal);
+	vk::AttachmentReference depthReference(1, vk::ImageLayout::eDepthStencilAttachmentOptimal);
+
+	vk::SubpassDescription subpass(
+		vk::SubpassDescriptionFlags(),
+		vk::PipelineBindPoint::eGraphics,
+		{},
+		colorReference,
+		{},
+		& depthReference
+	);
+
+	vk::RenderPass renderPass = device.createRenderPass(
+		vk::RenderPassCreateInfo(
+			vk::RenderPassCreateFlags(),
+			attachmentDescriptions,
+			subpass
+		)
+	);
+
+	//glslang::InitializeProcess();
+
+	//std::vector<uint32_t> vertexShaderSPV;
+	//bool ok = GLSLtoSPV(vk::ShaderStageFlagBits::eVertex, vertexShaderText_PC_C, vertexShaderSPV);
+	//assert(ok);
+
+	//vk::ShaderModuleCreateInfo vertexShaderInfo(vk::ShaderModuleCreateFlags(), vertexShaderSPV);
+	//vk::ShaderModule vertexShader = device.createShaderModule(vertexShaderInfo);
+
+	//std::vector<uint32_t> fragmentShaderSPV;
+	//ok = GLSLtoSPV(vk::ShaderStageFlagBits::eFragment, fragmentShaderText_C_C, fragmentShaderSPV);
+	//assert(ok);
+
+	//vk::ShaderModuleCreateInfo fragmentShaderInfo(vk::ShaderModuleCreateFlags(), fragmentShaderSPV);
+	//vk::ShaderModule fragmentShader = device.createShaderModule(fragmentShaderInfo);
+
+	//glslang::FinalizeProcess();
+
 	vk::CommandPool commandPool = device.createCommandPool(vk::CommandPoolCreateInfo(vk::CommandPoolCreateFlags(), graphicsQueueFamilyIndex));
 
 	vk::CommandBuffer commandBuffer = device.allocateCommandBuffers(vk::CommandBufferAllocateInfo(
@@ -201,6 +451,9 @@ int main(int argc, char* argv[]) {
 		vk::CommandBufferLevel::ePrimary,
 		1)
 	).front();
+
+	
+
 
 	while (!isShouldClose) {
 		while (SDL_PollEvent(&event) != 0) {
@@ -211,6 +464,23 @@ int main(int argc, char* argv[]) {
 
 	device.freeCommandBuffers(commandPool, commandBuffer);
 	device.destroyCommandPool(commandPool);
+
+	/*device.destroyShaderModule(fragmentShader);
+	device.destroyShaderModule(vertexShader);*/
+	
+	device.destroyRenderPass(renderPass);
+
+	device.freeDescriptorSets(descriptorPool, descriptorSet);
+	device.destroyDescriptorPool(descriptorPool);
+
+	device.destroyPipelineLayout(pipelineLayout);
+	device.destroyDescriptorSetLayout(descriptorSetLayout);
+
+	device.freeMemory(uniformDataMemory);
+	device.destroyBuffer(uniformDataBuffer);
+	device.destroyImageView(depthView);
+	device.freeMemory(depthMemory);
+	device.destroyImage(depthImage);
 	for (auto& imageView : imageViews) {
 		device.destroyImageView(imageView);
 	}

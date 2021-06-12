@@ -19,3 +19,6 @@
 [submodule "libraries/sdl2-cmake-modules"]
 	path = libraries/sdl2-cmake-modules
 	url = https://github.com/aminosbh/sdl2-cmake-modules.git
+[submodule "libraries/GLSLang-cmake"]
+	path = libraries/GLSLang-cmake
+	url = https://github.com/v1993/GLSLang-cmake.git
