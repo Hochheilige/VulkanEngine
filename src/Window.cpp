@@ -31,4 +31,5 @@ Window::Window(const char* name, const uint32_t width, const uint32_t height) {
 
 Window::~Window() {
 	SDL_DestroyWindow(window);
+	delete instance;
 }

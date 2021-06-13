@@ -18,7 +18,7 @@ struct Queues {
 
 class VulkanBase {
 public:
-	VulkanBase() = default;
+	VulkanBase() {};
 	~VulkanBase();
 
 	void init(SDL_Window* window);
@@ -57,7 +57,7 @@ private:
 	std::vector<vk::SurfaceFormatKHR> formats;
 
 	// TODO: should check is there more than 1 formats and is it define
-	vk::Format format; // is this color format???
+	vk::Format format{}; // is this color format???
 
 	// TODO: read about surface capabilities
 	vk::SurfaceCapabilitiesKHR surfaceCapabilities;
@@ -67,8 +67,7 @@ private:
 	vk::DebugUtilsMessengerEXT messenger;
 #endif // !NDEBUD
 
-
-	std::vector<const char*> layerProperties;
-	std::vector<const char*> instanceExtensions;
-	std::vector<const char*> deviceExtensions;
+	std::vector<const char*> layerProperties{};
+	std::vector<const char*> instanceExtensions{};
+	std::vector<const char*> deviceExtensions{};
 };

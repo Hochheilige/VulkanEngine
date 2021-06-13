@@ -11,6 +11,6 @@ public:
 
 	void run();
 private:
-	std::unique_ptr<Window> window = nullptr;
-	std::unique_ptr<VulkanBase> vulkanBase;
+	Window* window = nullptr;
+	VulkanBase vulkanBase;
 };

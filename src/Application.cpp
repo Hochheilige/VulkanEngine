@@ -181,133 +181,34 @@ int main(int argc, char* argv[]) {
 	Window* rendererWindow = Window::CreateWindow("Vulkan Renderer", 1024, 768);
 	SDL_Event event;
 	
-	VulkanBase base;
-	base.init(rendererWindow->GetWindow());
-	//std::vector<const char*> layerProperties{
-	//	"VK_LAYER_KHRONOS_validation"
-	//};
-
-	//uint32_t sdlExtensionsCount = 0;
-	//SDL_Vulkan_GetInstanceExtensions(rendererWindow->GetWindow(), &sdlExtensionsCount, nullptr);
-	//std::vector<const char*> instanceExtensions = {
-	//	// Extension VK_KHR_surface will get by SDL and I think it doesnt need it vector 
-	//	//"VK_KHR_surface",
-
-	//	// TODO: Find differences in utils and report
-	//	"VK_EXT_debug_report",
-	//	"VK_EXT_debug_utils"
-	//};
-	//size_t additionalExtensionsSize = instanceExtensions.size();
-	//instanceExtensions.resize(instanceExtensions.size() + sdlExtensionsCount);
-	//SDL_Vulkan_GetInstanceExtensions(rendererWindow->GetWindow(), &sdlExtensionsCount, instanceExtensions.data() + additionalExtensionsSize);
-
-	//vk::ApplicationInfo appInfo = { "VulkanEngineApp", 1, "VulkanEngine", 1, VK_API_VERSION_1_1 };
-	//vk::InstanceCreateInfo instanceInfo = { {}, &appInfo };
-	//instanceInfo.enabledLayerCount = layerProperties.size();
-	//instanceInfo.ppEnabledLayerNames = layerProperties.data();
-	//instanceInfo.enabledExtensionCount = instanceExtensions.size();
-	//instanceInfo.ppEnabledExtensionNames = instanceExtensions.data();
-	//vk::Instance instance = vk::createInstance(instanceInfo);
-	//
-	//// TODO: Find some additional information about vk::DispatchLoaderDynamic
-	//const auto dispatcher = vk::DispatchLoaderDynamic(instance, vkGetInstanceProcAddr);
-
-	//// TODO: Read some info about debug messengers in Vulkan
-	//auto debugMessenger = instance.createDebugUtilsMessengerEXT(
-	//	vk::DebugUtilsMessengerCreateInfoEXT{
-	//		{},
-	//		vk::DebugUtilsMessageSeverityFlagBitsEXT::eError | vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning |
-	//		vk::DebugUtilsMessageSeverityFlagBitsEXT::eInfo,
-	//		vk::DebugUtilsMessageTypeFlagBitsEXT::eGeneral | vk::DebugUtilsMessageTypeFlagBitsEXT::eValidation |
-	//		vk::DebugUtilsMessageTypeFlagBitsEXT::ePerformance,
-	//		debugCallback 
-	//	},
-	//	nullptr,
-	//	dispatcher
-	//);
-
-	//vk::PhysicalDevice gpu;
-	//for (const auto& physicalDevice : instance.enumeratePhysicalDevices()) {
-	//	vk::PhysicalDeviceProperties gpuProps = physicalDevice.getProperties();
-	//	gpu = strstr(gpuProps.deviceName, "NVIDIA") != nullptr ? physicalDevice : nullptr;
-	//}
-
-	//VkSurfaceKHR vksurface;
-	//SDL_bool res = SDL_Vulkan_CreateSurface(rendererWindow->GetWindow(), instance, &vksurface);
-	//vk::SurfaceKHR surface(vksurface);
-
-	//std::vector<vk::QueueFamilyProperties> queueFamilyProps = gpu.getQueueFamilyProperties();
-	//const auto graphicProp = std::find_if(queueFamilyProps.begin(), queueFamilyProps.end(),
-	//	[](vk::QueueFamilyProperties qfp) {
-	//	return qfp.queueFlags & vk::QueueFlagBits::eGraphics;
-	//});
-	//size_t graphicsQueueFamilyIndex = std::distance(queueFamilyProps.begin(), graphicProp);
-
-	//// TODO: We have to find different index if it equals to queueFamilyProps.size()
-	//size_t presentQueueFamilyIndex = gpu.getSurfaceSupportKHR(static_cast<uint32_t>(graphicsQueueFamilyIndex), surface) 
-	//	? graphicsQueueFamilyIndex
-	//	: queueFamilyProps.size();
-
-	//float queuePriotiry = 1.0f;
-	//vk::DeviceQueueCreateInfo deviceQueueInfo(vk::DeviceQueueCreateFlags(), static_cast<uint32_t>(graphicsQueueFamilyIndex), 1, &queuePriotiry);
-
-	//std::vector<const char*> deviceExtensions = {
-	//	VK_KHR_SWAPCHAIN_EXTENSION_NAME
-	//};
-
-	//vk::Device device = gpu.createDevice(
-	//	vk::DeviceCreateInfo(
-	//		vk::DeviceCreateFlags(),
-	//		1u, &deviceQueueInfo, 
-	//		0u, nullptr,
-	//		static_cast<uint32_t>(deviceExtensions.size()),
-	//		deviceExtensions.data()
-	//	)
-	//);
-
-	//vk::Queue graphicsQueue = device.getQueue(graphicsQueueFamilyIndex, 0);
-
-	//std::vector<vk::SurfaceFormatKHR> formats = gpu.getSurfaceFormatsKHR(surface);
-
-	//// TODO: should check is there more than 1 formats and is it define
-	//vk::Format format = formats.front().format; // is this color format???
-
-	//// TODO: read about surface capabilities
-	//vk::SurfaceCapabilitiesKHR surfaceCapabilities = gpu.getSurfaceCapabilitiesKHR(surface);
+	std::unique_ptr<VulkanBase> base = std::make_unique<VulkanBase>();
+	base->init(rendererWindow->GetWindow());
 
 	// TODO: read about Extent2D
-	vk::Extent2D swapchainExtent = base.GetSurfaceCapabilities().currentExtent;
+	vk::Extent2D swapchainExtent = base->GetSurfaceCapabilities().currentExtent;
 
 	// TODO: clarify present modes
 	vk::PresentModeKHR swapchainPresentMode = vk::PresentModeKHR::eFifo;
 
 	// TODO: what is it?
-	vk::SurfaceTransformFlagBitsKHR preTransform = (base.GetSurfaceCapabilities().supportedTransforms & vk::SurfaceTransformFlagBitsKHR::eIdentity)
+	vk::SurfaceTransformFlagBitsKHR preTransform = (base->GetSurfaceCapabilities().supportedTransforms & vk::SurfaceTransformFlagBitsKHR::eIdentity)
 		? vk::SurfaceTransformFlagBitsKHR::eIdentity
-		: base.GetSurfaceCapabilities().currentTransform;
+		: base->GetSurfaceCapabilities().currentTransform;
 
-	vk::CompositeAlphaFlagBitsKHR compositeAlpha = (base.GetSurfaceCapabilities().supportedCompositeAlpha & vk::CompositeAlphaFlagBitsKHR::ePreMultiplied)
+	vk::CompositeAlphaFlagBitsKHR compositeAlpha = (base->GetSurfaceCapabilities().supportedCompositeAlpha & vk::CompositeAlphaFlagBitsKHR::ePreMultiplied)
 		? vk::CompositeAlphaFlagBitsKHR::ePreMultiplied
-		: (base.GetSurfaceCapabilities().supportedCompositeAlpha & vk::CompositeAlphaFlagBitsKHR::ePostMultiplied)
+		: (base->GetSurfaceCapabilities().supportedCompositeAlpha & vk::CompositeAlphaFlagBitsKHR::ePostMultiplied)
 		? vk::CompositeAlphaFlagBitsKHR::ePostMultiplied
-		: (base.GetSurfaceCapabilities().supportedCompositeAlpha & vk::CompositeAlphaFlagBitsKHR::eInherit)
+		: (base->GetSurfaceCapabilities().supportedCompositeAlpha & vk::CompositeAlphaFlagBitsKHR::eInherit)
 		? vk::CompositeAlphaFlagBitsKHR::eInherit
 		: vk::CompositeAlphaFlagBitsKHR::eOpaque;
-
-	std::vector<uint32_t> queueFamilyIndexes = {
-		static_cast<uint32_t>(base.GetQueues().graphicsQueueIndex),
-		static_cast<uint32_t>(base.GetQueues().presentQueueIndex)
-	};
-
-	const auto iter = std::unique(queueFamilyIndexes.begin(), queueFamilyIndexes.end());
-	queueFamilyIndexes.erase(queueFamilyIndexes.begin(), iter);
 
 	// TODO: find more informations about parts of this struct
 	vk::SwapchainCreateInfoKHR swapchainInfo(
 		vk::SwapchainCreateFlagsKHR(),
-		base.GetSurface(),
-		base.GetSurfaceCapabilities().minImageCount,
-		base.GetFormat(),
+		base->GetSurface(),
+		base->GetSurfaceCapabilities().minImageCount,
+		base->GetFormat(),
 		vk::ColorSpaceKHR::eSrgbNonlinear,
 		swapchainExtent,
 		1,
@@ -321,9 +222,9 @@ int main(int argc, char* argv[]) {
 		nullptr
 	);
 	
-	vk::SwapchainKHR swapchain = base.GetDevice().createSwapchainKHR(swapchainInfo);
+	vk::SwapchainKHR swapchain = base->GetDevice().createSwapchainKHR(swapchainInfo);
 
-	std::vector<vk::Image> swapchainImages = base.GetDevice().getSwapchainImagesKHR(swapchain);
+	std::vector<vk::Image> swapchainImages = base->GetDevice().getSwapchainImagesKHR(swapchain);
 	std::vector<vk::ImageView> imageViews;
 	imageViews.reserve(swapchainImages.size());
 
@@ -342,15 +243,15 @@ int main(int argc, char* argv[]) {
 			vk::ImageViewCreateFlags(),
 			image,
 			vk::ImageViewType::e2D,
-			base.GetFormat(),
+			base->GetFormat(),
 			componentMapping,
 			subResourceRange
 		);
-		imageViews.push_back(base.GetDevice().createImageView(imageViewCreateInfo));
+		imageViews.push_back(base->GetDevice().createImageView(imageViewCreateInfo));
 	}
 
 	const vk::Format depthFormat = vk::Format::eD16Unorm;
-	vk::FormatProperties formatProperties = base.GetPhysicalDevice().getFormatProperties(depthFormat);
+	vk::FormatProperties formatProperties = base->GetPhysicalDevice().getFormatProperties(depthFormat);
 
 	// TODO: tiling??????
 	vk::ImageTiling tiling;
@@ -375,22 +276,22 @@ int main(int argc, char* argv[]) {
 		vk::ImageUsageFlagBits::eDepthStencilAttachment
 	);
 
-	vk::Image depthImage = base.GetDevice().createImage(imageInfo);
+	vk::Image depthImage = base->GetDevice().createImage(imageInfo);
 
 	// TODO: Dealing with memory allocation in Vulkan
-	vk::PhysicalDeviceMemoryProperties memoryProperties = base.GetPhysicalDevice().getMemoryProperties();
-	vk::MemoryRequirements memoryRequirements = base.GetDevice().getImageMemoryRequirements(depthImage);
+	vk::PhysicalDeviceMemoryProperties memoryProperties = base->GetPhysicalDevice().getMemoryProperties();
+	vk::MemoryRequirements memoryRequirements = base->GetDevice().getImageMemoryRequirements(depthImage);
 	uint32_t typeBits = memoryRequirements.memoryTypeBits;
 	uint32_t typeIndex = findMemoryType(memoryProperties, typeBits, vk::MemoryPropertyFlagBits::eDeviceLocal);
 
 	// This part probably clear
-	vk::DeviceMemory depthMemory = base.GetDevice().allocateMemory(vk::MemoryAllocateInfo(memoryRequirements.size, typeIndex));
-	base.GetDevice().bindImageMemory(depthImage, depthMemory, 0);
+	vk::DeviceMemory depthMemory = base->GetDevice().allocateMemory(vk::MemoryAllocateInfo(memoryRequirements.size, typeIndex));
+	base->GetDevice().bindImageMemory(depthImage, depthMemory, 0);
 
 	// TODO: what is component mapping and subresource range (2)
 	vk::ImageSubresourceRange depthSubResourceRange(vk::ImageAspectFlagBits::eDepth, 0, 1, 0, 1);
 
-	vk::ImageView depthView = base.GetDevice().createImageView(
+	vk::ImageView depthView = base->GetDevice().createImageView(
 		vk::ImageViewCreateInfo(
 			vk::ImageViewCreateFlags(),
 			depthImage,
@@ -417,24 +318,24 @@ int main(int argc, char* argv[]) {
 	);
 	glm::mat4x4 mvpc = clip * projection * view * model;
 
-	vk::Buffer uniformDataBuffer = base.GetDevice().createBuffer(
+	vk::Buffer uniformDataBuffer = base->GetDevice().createBuffer(
 		vk::BufferCreateInfo(vk::BufferCreateFlags(), sizeof(mvpc), vk::BufferUsageFlagBits::eUniformBuffer)
 	);
 	
-	vk::MemoryRequirements uniformMemoryReq = base.GetDevice().getBufferMemoryRequirements(uniformDataBuffer);
+	vk::MemoryRequirements uniformMemoryReq = base->GetDevice().getBufferMemoryRequirements(uniformDataBuffer);
 	uint32_t uniformTypeIndex = findMemoryType(
 		memoryProperties, 
 		uniformMemoryReq.memoryTypeBits,
 		vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent
 	);
 
-	vk::DeviceMemory uniformDataMemory = base.GetDevice().allocateMemory(vk::MemoryAllocateInfo(uniformMemoryReq.size, uniformTypeIndex));
+	vk::DeviceMemory uniformDataMemory = base->GetDevice().allocateMemory(vk::MemoryAllocateInfo(uniformMemoryReq.size, uniformTypeIndex));
 
-	uint8_t* data = static_cast<uint8_t*>(base.GetDevice().mapMemory(uniformDataMemory, 0, uniformMemoryReq.size));
+	uint8_t* data = static_cast<uint8_t*>(base->GetDevice().mapMemory(uniformDataMemory, 0, uniformMemoryReq.size));
 	memcpy(data, &mvpc, sizeof(mvpc));
-	base.GetDevice().unmapMemory(uniformDataMemory);
+	base->GetDevice().unmapMemory(uniformDataMemory);
 
-	base.GetDevice().bindBufferMemory(uniformDataBuffer, uniformDataMemory, 0);
+	base->GetDevice().bindBufferMemory(uniformDataBuffer, uniformDataMemory, 0);
 
 	// TODO: make sure what is descriptor set need for
 	// Descriptor set stuff and pipelineLayout
@@ -445,17 +346,17 @@ int main(int argc, char* argv[]) {
 		vk::ShaderStageFlagBits::eVertex
 	);
 
-	vk::DescriptorSetLayout descriptorSetLayout = base.GetDevice().createDescriptorSetLayout(
+	vk::DescriptorSetLayout descriptorSetLayout = base->GetDevice().createDescriptorSetLayout(
 		vk::DescriptorSetLayoutCreateInfo(vk::DescriptorSetLayoutCreateFlags(), descriptorSetLayoutBinding)
 	);
 	
-	vk::PipelineLayout pipelineLayout = base.GetDevice().createPipelineLayout(
+	vk::PipelineLayout pipelineLayout = base->GetDevice().createPipelineLayout(
 		vk::PipelineLayoutCreateInfo(vk::PipelineLayoutCreateFlags(), descriptorSetLayout)
 	);
 
 	// Descriptor pool loool
 	vk::DescriptorPoolSize poolSize(vk::DescriptorType::eUniformBuffer, 1);
-	vk::DescriptorPool descriptorPool = base.GetDevice().createDescriptorPool(
+	vk::DescriptorPool descriptorPool = base->GetDevice().createDescriptorPool(
 		vk::DescriptorPoolCreateInfo(
 			vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet,
 			/* maxSets */1, 
@@ -465,7 +366,7 @@ int main(int argc, char* argv[]) {
 
 	// allocate a desriptor set
 	vk::DescriptorSetAllocateInfo descriptorSetAllocateInfo(descriptorPool, descriptorSetLayout);
-	vk::DescriptorSet descriptorSet = base.GetDevice().allocateDescriptorSets(descriptorSetAllocateInfo).front();
+	vk::DescriptorSet descriptorSet = base->GetDevice().allocateDescriptorSets(descriptorSetAllocateInfo).front();
 
 	// descriptor buffer (what a....)
 	vk::DescriptorBufferInfo descriptorBufferInfo(
@@ -482,13 +383,13 @@ int main(int argc, char* argv[]) {
 		{},
 		descriptorBufferInfo
 	);
-	base.GetDevice().updateDescriptorSets(writeDescriptorSet, nullptr);
+	base->GetDevice().updateDescriptorSets(writeDescriptorSet, nullptr);
 
 	// TODO: read about attachment description
 	std::array<vk::AttachmentDescription, 2> attachmentDescriptions;
 	attachmentDescriptions[0] = vk::AttachmentDescription(
 		vk::AttachmentDescriptionFlags(),
-		base.GetFormat(),
+		base->GetFormat(),
 		vk::SampleCountFlagBits::e1,
 		vk::AttachmentLoadOp::eClear,
 		vk::AttachmentStoreOp::eStore,
@@ -521,7 +422,7 @@ int main(int argc, char* argv[]) {
 		& depthReference
 	);
 
-	vk::RenderPass renderPass = base.GetDevice().createRenderPass(
+	vk::RenderPass renderPass = base->GetDevice().createRenderPass(
 		vk::RenderPassCreateInfo(
 			vk::RenderPassCreateFlags(),
 			attachmentDescriptions,
@@ -531,8 +432,8 @@ int main(int argc, char* argv[]) {
 
 
 	// shader modules stuff
-	vk::ShaderModule cubeVertexShaderModule = loadShaderModule("../shaders/cube.vert.spv", base.GetDevice());
-	vk::ShaderModule cubeFragmentShaderModule = loadShaderModule("../shaders/cube.frag.spv", base.GetDevice());
+	vk::ShaderModule cubeVertexShaderModule = loadShaderModule("../shaders/cube.vert.spv", base->GetDevice());
+	vk::ShaderModule cubeFragmentShaderModule = loadShaderModule("../shaders/cube.frag.spv", base->GetDevice());
 
 	// frame buffer stuff
 	std::array<vk::ImageView, 2> attachments;
@@ -551,25 +452,25 @@ int main(int argc, char* argv[]) {
 	framebuffers.reserve(imageViews.size());
 	for (const auto& imageView : imageViews) {
 		attachments[0] = imageView;
-		framebuffers.push_back(base.GetDevice().createFramebuffer(frameBufferCreateInfo));
+		framebuffers.push_back(base->GetDevice().createFramebuffer(frameBufferCreateInfo));
 	}
 
 	// command pool and command buffer
-	vk::CommandPool commandPool = base.GetDevice().createCommandPool(
+	vk::CommandPool commandPool = base->GetDevice().createCommandPool(
 		vk::CommandPoolCreateInfo(
 			vk::CommandPoolCreateFlagBits::eResetCommandBuffer,
-			base.GetQueues().graphicsQueueIndex
+			base->GetQueues().graphicsQueueIndex
 		)
 	);
 
-	vk::CommandBuffer commandBuffer = base.GetDevice().allocateCommandBuffers(vk::CommandBufferAllocateInfo(
+	vk::CommandBuffer commandBuffer = base->GetDevice().allocateCommandBuffers(vk::CommandBufferAllocateInfo(
 		commandPool,
 		vk::CommandBufferLevel::ePrimary,
 		1)
 	).front();
 
 	// vertex buffer
-	vk::Buffer vertexBuffer = base.GetDevice().createBuffer(
+	vk::Buffer vertexBuffer = base->GetDevice().createBuffer(
 		vk::BufferCreateInfo(
 			vk::BufferCreateFlags(),
 			sizeof(coloredCubeData),
@@ -577,16 +478,16 @@ int main(int argc, char* argv[]) {
 		)
 	);
 
-	vk::MemoryRequirements bufferMemoryRequiremenents = base.GetDevice().getBufferMemoryRequirements(vertexBuffer);
-	uint32_t memoryTypeIndex = findMemoryType(base.GetPhysicalDevice().getMemoryProperties(), bufferMemoryRequiremenents.memoryTypeBits,
+	vk::MemoryRequirements bufferMemoryRequiremenents = base->GetDevice().getBufferMemoryRequirements(vertexBuffer);
+	uint32_t memoryTypeIndex = findMemoryType(base->GetPhysicalDevice().getMemoryProperties(), bufferMemoryRequiremenents.memoryTypeBits,
 		vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
-	vk::DeviceMemory deviceMemory = base.GetDevice().allocateMemory(vk::MemoryAllocateInfo(bufferMemoryRequiremenents.size, memoryTypeIndex));
+	vk::DeviceMemory deviceMemory = base->GetDevice().allocateMemory(vk::MemoryAllocateInfo(bufferMemoryRequiremenents.size, memoryTypeIndex));
 
-	data = static_cast<uint8_t*>(base.GetDevice().mapMemory(deviceMemory, 0, bufferMemoryRequiremenents.size));
+	data = static_cast<uint8_t*>(base->GetDevice().mapMemory(deviceMemory, 0, bufferMemoryRequiremenents.size));
 	memcpy(data, coloredCubeData, sizeof(coloredCubeData));
-	base.GetDevice().unmapMemory(deviceMemory);
+	base->GetDevice().unmapMemory(deviceMemory);
 
-	base.GetDevice().bindBufferMemory(vertexBuffer, deviceMemory, 0);
+	base->GetDevice().bindBufferMemory(vertexBuffer, deviceMemory, 0);
 
 	// pipeline 
 	std::array<vk::PipelineShaderStageCreateInfo, 2> pipelineShaderStagesCreateInfos = {
@@ -718,7 +619,7 @@ int main(int argc, char* argv[]) {
 
 	vk::Result result;
 	vk::Pipeline pipeline;
-	std::tie(result, pipeline) = base.GetDevice().createGraphicsPipeline(nullptr, graphicsPipelineCreateInfo);
+	std::tie(result, pipeline) = base->GetDevice().createGraphicsPipeline(nullptr, graphicsPipelineCreateInfo);
 
 
 	uint32_t frameNumber = 0;
@@ -729,9 +630,9 @@ int main(int argc, char* argv[]) {
 		}
 
 		// Not sure that this is part of vertex buffer stuff
-		vk::Semaphore imageAcquiredSemaphore = base.GetDevice().createSemaphore(vk::SemaphoreCreateInfo(vk::SemaphoreCreateFlags()));
+		vk::Semaphore imageAcquiredSemaphore = base->GetDevice().createSemaphore(vk::SemaphoreCreateInfo(vk::SemaphoreCreateFlags()));
 
-		vk::ResultValue<uint32_t> currentBuffer = base.GetDevice().acquireNextImageKHR(
+		vk::ResultValue<uint32_t> currentBuffer = base->GetDevice().acquireNextImageKHR(
 			swapchain,
 			1000000000,
 			imageAcquiredSemaphore,
@@ -767,9 +668,9 @@ int main(int argc, char* argv[]) {
 		mvpc = clip * projection * view * model;
 		++frameNumber;
 
-		data = static_cast<uint8_t*>(base.GetDevice().mapMemory(uniformDataMemory, 0, uniformMemoryReq.size));
+		data = static_cast<uint8_t*>(base->GetDevice().mapMemory(uniformDataMemory, 0, uniformMemoryReq.size));
 		memcpy(data, &mvpc, sizeof(mvpc));
-		base.GetDevice().unmapMemory(uniformDataMemory);
+		base->GetDevice().unmapMemory(uniformDataMemory);
 
 		commandBuffer.begin(vk::CommandBufferBeginInfo(vk::CommandBufferUsageFlags()));
 
@@ -810,61 +711,61 @@ int main(int argc, char* argv[]) {
 		//submitAndWait(device, graphicsQueue, commandBuffer);
 		
 		// submiting to queue and present
-		vk::Fence drawFence = base.GetDevice().createFence(vk::FenceCreateInfo());
+		vk::Fence drawFence = base->GetDevice().createFence(vk::FenceCreateInfo());
 		vk::PipelineStageFlags waitDestinationStageMask(vk::PipelineStageFlagBits::eColorAttachmentOutput);
 		vk::SubmitInfo submitInfo(
 			imageAcquiredSemaphore,
 			waitDestinationStageMask,
 			commandBuffer
 		);
-		base.GetQueues().graphicsQueue.submit(submitInfo, drawFence);
+		base->GetQueues().graphicsQueue.submit(submitInfo, drawFence);
 
-		while (vk::Result::eTimeout == base.GetDevice().waitForFences(drawFence, VK_TRUE, 1000000000));
+		while (vk::Result::eTimeout == base->GetDevice().waitForFences(drawFence, VK_TRUE, 1000000000));
 
-		vk::Result drawResult = base.GetQueues().graphicsQueue.presentKHR(vk::PresentInfoKHR({}, swapchain, currentBuffer.value));
+		vk::Result drawResult = base->GetQueues().graphicsQueue.presentKHR(vk::PresentInfoKHR({}, swapchain, currentBuffer.value));
 
-		base.GetDevice().waitIdle();
+		base->GetDevice().waitIdle();
 
-		base.GetDevice().destroyFence(drawFence);
-		base.GetDevice().destroySemaphore(imageAcquiredSemaphore);
+		base->GetDevice().destroyFence(drawFence);
+		base->GetDevice().destroySemaphore(imageAcquiredSemaphore);
 	}
 	
-	base.GetDevice().destroyPipeline(pipeline);
+	base->GetDevice().destroyPipeline(pipeline);
 
-	base.GetDevice().freeMemory(deviceMemory);
-	base.GetDevice().destroyBuffer(vertexBuffer);
+	base->GetDevice().freeMemory(deviceMemory);
+	base->GetDevice().destroyBuffer(vertexBuffer);
 
-	base.GetDevice().freeCommandBuffers(commandPool, commandBuffer);
-	base.GetDevice().destroyCommandPool(commandPool);
+	base->GetDevice().freeCommandBuffers(commandPool, commandBuffer);
+	base->GetDevice().destroyCommandPool(commandPool);
 
 	for (const auto& framebuffer : framebuffers) {
-		base.GetDevice().destroyFramebuffer(framebuffer);
+		base->GetDevice().destroyFramebuffer(framebuffer);
 	}
 
-	base.GetDevice().destroyShaderModule(cubeFragmentShaderModule);
-	base.GetDevice().destroyShaderModule(cubeVertexShaderModule);
+	base->GetDevice().destroyShaderModule(cubeFragmentShaderModule);
+	base->GetDevice().destroyShaderModule(cubeVertexShaderModule);
 	
-	base.GetDevice().destroyRenderPass(renderPass);
+	base->GetDevice().destroyRenderPass(renderPass);
 
-	base.GetDevice().freeDescriptorSets(descriptorPool, descriptorSet);
-	base.GetDevice().destroyDescriptorPool(descriptorPool);
+	base->GetDevice().freeDescriptorSets(descriptorPool, descriptorSet);
+	base->GetDevice().destroyDescriptorPool(descriptorPool);
 
-	base.GetDevice().destroyPipelineLayout(pipelineLayout);
-	base.GetDevice().destroyDescriptorSetLayout(descriptorSetLayout);
+	base->GetDevice().destroyPipelineLayout(pipelineLayout);
+	base->GetDevice().destroyDescriptorSetLayout(descriptorSetLayout);
 
-	base.GetDevice().freeMemory(uniformDataMemory);
-	base.GetDevice().destroyBuffer(uniformDataBuffer);
-	base.GetDevice().destroyImageView(depthView);
-	base.GetDevice().freeMemory(depthMemory);
-	base.GetDevice().destroyImage(depthImage);
+	base->GetDevice().freeMemory(uniformDataMemory);
+	base->GetDevice().destroyBuffer(uniformDataBuffer);
+	base->GetDevice().destroyImageView(depthView);
+	base->GetDevice().freeMemory(depthMemory);
+	base->GetDevice().destroyImage(depthImage);
 	for (auto& imageView : imageViews) {
-		base.GetDevice().destroyImageView(imageView);
+		base->GetDevice().destroyImageView(imageView);
 	}
-	base.GetDevice().destroySwapchainKHR(swapchain);
-	//base.instance.destroySurfaceKHR(base.surface);
-	//base.device.destroy();
-	////base.instance.destroyDebugUtilsMessengerEXT(base.debugMessenger, nullptr, base.dispatcher);
-	//base.instance.destroy();
+	base->GetDevice().destroySwapchainKHR(swapchain);
+	//base->instance.destroySurfaceKHR(base->surface);
+	//base->device.destroy();
+	////base->instance.destroyDebugUtilsMessengerEXT(base->debugMessenger, nullptr, base->dispatcher);
+	//base->instance.destroy();
 	////SDL_DestroyWindow(window);
 
 	return 0;
