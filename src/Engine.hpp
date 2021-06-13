@@ -7,6 +7,7 @@
 #include <DescriptorSet.hpp>
 #include <RenderPass.hpp>
 #include <Framebuffer.hpp>
+#include <PipelineBuilder.hpp>
 
 class Engine {
 public:

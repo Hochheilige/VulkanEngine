@@ -8,7 +8,7 @@ add_executable(${PROJECT_NAME}
     VulkanBase.cpp
     Swapchain.hpp
     Swapchain.cpp
- "Image.hpp" "Image.cpp" "Buffer.hpp" "Buffer.cpp" "utils.cpp" "utils.hpp" "Resource.hpp" "Resource.cpp" "DescriptorSet.hpp" "DescriptorSet.cpp" "Framebuffer.hpp" "Framebuffer.cpp" "RenderPass.hpp" "RenderPass.cpp")
+ "Image.hpp" "Image.cpp" "Buffer.hpp" "Buffer.cpp" "utils.cpp" "utils.hpp" "Resource.hpp" "Resource.cpp" "DescriptorSet.hpp" "DescriptorSet.cpp" "Framebuffer.hpp" "Framebuffer.cpp" "RenderPass.hpp" "RenderPass.cpp" "PipelineBuilder.hpp" "PipelineBuilder.cpp")
 
 set_property(TARGET ${PROJECT_NAME} PROPERTY VS_DEBUGGER_WORKING_DIRECTORY "$<TARGET_FILE_DIR:${PROJECT_NAME}")
 
