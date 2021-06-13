@@ -11,7 +11,9 @@
 #include <fstream>
 #include <vector>
 #include <algorithm>
+#include <memory>
 
+#include <Engine.hpp>
 
 // Extra stuff to render a cube (hardcoded vertexes)
 struct VertexPC
@@ -176,162 +178,154 @@ void submitAndWait(vk::Device const& device, vk::Queue const& queue, vk::Command
 
 int main(int argc, char* argv[]) {
 
-	SDL_Init(SDL_INIT_VIDEO);
-
-	SDL_Window* window = SDL_CreateWindow(
-		"VulkanEngine",
-		SDL_WINDOWPOS_CENTERED,
-		SDL_WINDOWPOS_CENTERED,
-		1024, 768,
-		SDL_WINDOW_VULKAN
-	);
-
+	Window* rendererWindow = Window::CreateWindow("Vulkan Renderer", 1024, 768);
 	SDL_Event event;
-	bool isShouldClose = false;
-
-	std::vector<const char*> layerProperties{
-		"VK_LAYER_KHRONOS_validation"
-	};
-
-	uint32_t sdlExtensionsCount = 0;
-	SDL_Vulkan_GetInstanceExtensions(window, &sdlExtensionsCount, nullptr);
-	std::vector<const char*> instanceExtensions = {
-		// Extension VK_KHR_surface will get by SDL and I think it doesnt need it vector 
-		//"VK_KHR_surface",
-
-		// TODO: Find differences in utils and report
-		"VK_EXT_debug_report",
-		"VK_EXT_debug_utils"
-	};
-	size_t additionalExtensionsSize = instanceExtensions.size();
-	instanceExtensions.resize(instanceExtensions.size() + sdlExtensionsCount);
-	SDL_Vulkan_GetInstanceExtensions(window, &sdlExtensionsCount, instanceExtensions.data() + additionalExtensionsSize);
-
-	vk::ApplicationInfo appInfo = { "VulkanEngineApp", 1, "VulkanEngine", 1, VK_API_VERSION_1_1 };
-	vk::InstanceCreateInfo instanceInfo = { {}, &appInfo };
-	instanceInfo.enabledLayerCount = layerProperties.size();
-	instanceInfo.ppEnabledLayerNames = layerProperties.data();
-	instanceInfo.enabledExtensionCount = instanceExtensions.size();
-	instanceInfo.ppEnabledExtensionNames = instanceExtensions.data();
-	vk::Instance instance = vk::createInstance(instanceInfo);
 	
-	// TODO: Find some additional information about vk::DispatchLoaderDynamic
-	const auto dispatcher = vk::DispatchLoaderDynamic(instance, vkGetInstanceProcAddr);
+	VulkanBase base;
+	base.init(rendererWindow->GetWindow());
+	//std::vector<const char*> layerProperties{
+	//	"VK_LAYER_KHRONOS_validation"
+	//};
 
-	// TODO: Read some info about debug messengers in Vulkan
-	auto debugMessenger = instance.createDebugUtilsMessengerEXT(
-		vk::DebugUtilsMessengerCreateInfoEXT{
-			{},
-			vk::DebugUtilsMessageSeverityFlagBitsEXT::eError | vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning |
-			vk::DebugUtilsMessageSeverityFlagBitsEXT::eInfo,
-			vk::DebugUtilsMessageTypeFlagBitsEXT::eGeneral | vk::DebugUtilsMessageTypeFlagBitsEXT::eValidation |
-			vk::DebugUtilsMessageTypeFlagBitsEXT::ePerformance,
-			debugCallback 
-		},
-		nullptr,
-		dispatcher
-	);
+	//uint32_t sdlExtensionsCount = 0;
+	//SDL_Vulkan_GetInstanceExtensions(rendererWindow->GetWindow(), &sdlExtensionsCount, nullptr);
+	//std::vector<const char*> instanceExtensions = {
+	//	// Extension VK_KHR_surface will get by SDL and I think it doesnt need it vector 
+	//	//"VK_KHR_surface",
 
-	vk::PhysicalDevice gpu;
-	for (const auto& physicalDevice : instance.enumeratePhysicalDevices()) {
-		vk::PhysicalDeviceProperties gpuProps = physicalDevice.getProperties();
-		gpu = strstr(gpuProps.deviceName, "NVIDIA") != nullptr ? physicalDevice : nullptr;
-	}
+	//	// TODO: Find differences in utils and report
+	//	"VK_EXT_debug_report",
+	//	"VK_EXT_debug_utils"
+	//};
+	//size_t additionalExtensionsSize = instanceExtensions.size();
+	//instanceExtensions.resize(instanceExtensions.size() + sdlExtensionsCount);
+	//SDL_Vulkan_GetInstanceExtensions(rendererWindow->GetWindow(), &sdlExtensionsCount, instanceExtensions.data() + additionalExtensionsSize);
 
-	VkSurfaceKHR vksurface;
-	SDL_bool res = SDL_Vulkan_CreateSurface(window, instance, &vksurface);
-	vk::SurfaceKHR surface(vksurface);
+	//vk::ApplicationInfo appInfo = { "VulkanEngineApp", 1, "VulkanEngine", 1, VK_API_VERSION_1_1 };
+	//vk::InstanceCreateInfo instanceInfo = { {}, &appInfo };
+	//instanceInfo.enabledLayerCount = layerProperties.size();
+	//instanceInfo.ppEnabledLayerNames = layerProperties.data();
+	//instanceInfo.enabledExtensionCount = instanceExtensions.size();
+	//instanceInfo.ppEnabledExtensionNames = instanceExtensions.data();
+	//vk::Instance instance = vk::createInstance(instanceInfo);
+	//
+	//// TODO: Find some additional information about vk::DispatchLoaderDynamic
+	//const auto dispatcher = vk::DispatchLoaderDynamic(instance, vkGetInstanceProcAddr);
 
-	std::vector<vk::QueueFamilyProperties> queueFamilyProps = gpu.getQueueFamilyProperties();
-	const auto graphicProp = std::find_if(queueFamilyProps.begin(), queueFamilyProps.end(),
-		[](vk::QueueFamilyProperties qfp) {
-		return qfp.queueFlags & vk::QueueFlagBits::eGraphics;
-	});
-	size_t graphicsQueueFamilyIndex = std::distance(queueFamilyProps.begin(), graphicProp);
+	//// TODO: Read some info about debug messengers in Vulkan
+	//auto debugMessenger = instance.createDebugUtilsMessengerEXT(
+	//	vk::DebugUtilsMessengerCreateInfoEXT{
+	//		{},
+	//		vk::DebugUtilsMessageSeverityFlagBitsEXT::eError | vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning |
+	//		vk::DebugUtilsMessageSeverityFlagBitsEXT::eInfo,
+	//		vk::DebugUtilsMessageTypeFlagBitsEXT::eGeneral | vk::DebugUtilsMessageTypeFlagBitsEXT::eValidation |
+	//		vk::DebugUtilsMessageTypeFlagBitsEXT::ePerformance,
+	//		debugCallback 
+	//	},
+	//	nullptr,
+	//	dispatcher
+	//);
 
-	// TODO: We have to find different index if it equals to queueFamilyProps.size()
-	size_t presentQueueFamilyIndex = gpu.getSurfaceSupportKHR(static_cast<uint32_t>(graphicsQueueFamilyIndex), surface) 
-		? graphicsQueueFamilyIndex
-		: queueFamilyProps.size();
+	//vk::PhysicalDevice gpu;
+	//for (const auto& physicalDevice : instance.enumeratePhysicalDevices()) {
+	//	vk::PhysicalDeviceProperties gpuProps = physicalDevice.getProperties();
+	//	gpu = strstr(gpuProps.deviceName, "NVIDIA") != nullptr ? physicalDevice : nullptr;
+	//}
 
-	float queuePriotiry = 1.0f;
-	vk::DeviceQueueCreateInfo deviceQueueInfo(vk::DeviceQueueCreateFlags(), static_cast<uint32_t>(graphicsQueueFamilyIndex), 1, &queuePriotiry);
+	//VkSurfaceKHR vksurface;
+	//SDL_bool res = SDL_Vulkan_CreateSurface(rendererWindow->GetWindow(), instance, &vksurface);
+	//vk::SurfaceKHR surface(vksurface);
 
-	std::vector<const char*> deviceExtensions = {
-		VK_KHR_SWAPCHAIN_EXTENSION_NAME
-	};
+	//std::vector<vk::QueueFamilyProperties> queueFamilyProps = gpu.getQueueFamilyProperties();
+	//const auto graphicProp = std::find_if(queueFamilyProps.begin(), queueFamilyProps.end(),
+	//	[](vk::QueueFamilyProperties qfp) {
+	//	return qfp.queueFlags & vk::QueueFlagBits::eGraphics;
+	//});
+	//size_t graphicsQueueFamilyIndex = std::distance(queueFamilyProps.begin(), graphicProp);
 
-	vk::Device device = gpu.createDevice(
-		vk::DeviceCreateInfo(
-			vk::DeviceCreateFlags(),
-			1u, &deviceQueueInfo, 
-			0u, nullptr,
-			static_cast<uint32_t>(deviceExtensions.size()),
-			deviceExtensions.data()
-		)
-	);
+	//// TODO: We have to find different index if it equals to queueFamilyProps.size()
+	//size_t presentQueueFamilyIndex = gpu.getSurfaceSupportKHR(static_cast<uint32_t>(graphicsQueueFamilyIndex), surface) 
+	//	? graphicsQueueFamilyIndex
+	//	: queueFamilyProps.size();
 
-	vk::Queue graphicsQueue = device.getQueue(graphicsQueueFamilyIndex, 0);
+	//float queuePriotiry = 1.0f;
+	//vk::DeviceQueueCreateInfo deviceQueueInfo(vk::DeviceQueueCreateFlags(), static_cast<uint32_t>(graphicsQueueFamilyIndex), 1, &queuePriotiry);
 
-	std::vector<vk::SurfaceFormatKHR> formats = gpu.getSurfaceFormatsKHR(surface);
+	//std::vector<const char*> deviceExtensions = {
+	//	VK_KHR_SWAPCHAIN_EXTENSION_NAME
+	//};
 
-	// TODO: should check is there more than 1 formats and is it define
-	vk::Format format = formats.front().format; // is this color format???
+	//vk::Device device = gpu.createDevice(
+	//	vk::DeviceCreateInfo(
+	//		vk::DeviceCreateFlags(),
+	//		1u, &deviceQueueInfo, 
+	//		0u, nullptr,
+	//		static_cast<uint32_t>(deviceExtensions.size()),
+	//		deviceExtensions.data()
+	//	)
+	//);
 
-	// TODO: read about surface capabilities
-	vk::SurfaceCapabilitiesKHR surfaceCapabilities = gpu.getSurfaceCapabilitiesKHR(surface);
+	//vk::Queue graphicsQueue = device.getQueue(graphicsQueueFamilyIndex, 0);
 
-	// TODO: read about Extent2D
-	vk::Extent2D swapchainExtent = surfaceCapabilities.currentExtent;
+	//std::vector<vk::SurfaceFormatKHR> formats = gpu.getSurfaceFormatsKHR(surface);
 
-	// TODO: clarify present modes
-	vk::PresentModeKHR swapchainPresentMode = vk::PresentModeKHR::eFifo;
+	//// TODO: should check is there more than 1 formats and is it define
+	//vk::Format format = formats.front().format; // is this color format???
 
-	// TODO: what is it?
-	vk::SurfaceTransformFlagBitsKHR preTransform = (surfaceCapabilities.supportedTransforms & vk::SurfaceTransformFlagBitsKHR::eIdentity)
-		? vk::SurfaceTransformFlagBitsKHR::eIdentity
-		: surfaceCapabilities.currentTransform;
+	//// TODO: read about surface capabilities
+	//vk::SurfaceCapabilitiesKHR surfaceCapabilities = gpu.getSurfaceCapabilitiesKHR(surface);
 
-	vk::CompositeAlphaFlagBitsKHR compositeAlpha = (surfaceCapabilities.supportedCompositeAlpha & vk::CompositeAlphaFlagBitsKHR::ePreMultiplied)
-		? vk::CompositeAlphaFlagBitsKHR::ePreMultiplied
-		: (surfaceCapabilities.supportedCompositeAlpha & vk::CompositeAlphaFlagBitsKHR::ePostMultiplied)
-		? vk::CompositeAlphaFlagBitsKHR::ePostMultiplied
-		: (surfaceCapabilities.supportedCompositeAlpha & vk::CompositeAlphaFlagBitsKHR::eInherit)
-		? vk::CompositeAlphaFlagBitsKHR::eInherit
-		: vk::CompositeAlphaFlagBitsKHR::eOpaque;
+	//// TODO: read about Extent2D
+	//vk::Extent2D swapchainExtent = surfaceCapabilities.currentExtent;
 
-	std::vector<uint32_t> queueFamilyIndexes = {
-		static_cast<uint32_t>(graphicsQueueFamilyIndex),
-		static_cast<uint32_t>(presentQueueFamilyIndex)
-	};
+	//// TODO: clarify present modes
+	//vk::PresentModeKHR swapchainPresentMode = vk::PresentModeKHR::eFifo;
 
-	const auto iter = std::unique(queueFamilyIndexes.begin(), queueFamilyIndexes.end());
-	queueFamilyIndexes.erase(queueFamilyIndexes.begin(), iter);
+	//// TODO: what is it?
+	//vk::SurfaceTransformFlagBitsKHR preTransform = (surfaceCapabilities.supportedTransforms & vk::SurfaceTransformFlagBitsKHR::eIdentity)
+	//	? vk::SurfaceTransformFlagBitsKHR::eIdentity
+	//	: surfaceCapabilities.currentTransform;
 
-	// TODO: find more informations about parts of this struct
-	vk::SwapchainCreateInfoKHR swapchainInfo(
-		vk::SwapchainCreateFlagsKHR(),
-		surface ,
-		surfaceCapabilities.minImageCount,
-		format,
-		vk::ColorSpaceKHR::eSrgbNonlinear,
-		swapchainExtent,
-		1,
-		vk::ImageUsageFlagBits::eColorAttachment,
-		vk::SharingMode::eExclusive,
-		{},
-		preTransform,
-		compositeAlpha,
-		swapchainPresentMode,
-		true,
-		nullptr
-	);
-	
-	vk::SwapchainKHR swapchain = device.createSwapchainKHR(swapchainInfo);
+	//vk::CompositeAlphaFlagBitsKHR compositeAlpha = (surfaceCapabilities.supportedCompositeAlpha & vk::CompositeAlphaFlagBitsKHR::ePreMultiplied)
+	//	? vk::CompositeAlphaFlagBitsKHR::ePreMultiplied
+	//	: (surfaceCapabilities.supportedCompositeAlpha & vk::CompositeAlphaFlagBitsKHR::ePostMultiplied)
+	//	? vk::CompositeAlphaFlagBitsKHR::ePostMultiplied
+	//	: (surfaceCapabilities.supportedCompositeAlpha & vk::CompositeAlphaFlagBitsKHR::eInherit)
+	//	? vk::CompositeAlphaFlagBitsKHR::eInherit
+	//	: vk::CompositeAlphaFlagBitsKHR::eOpaque;
 
-	std::vector<vk::Image> swapchainImages = device.getSwapchainImagesKHR(swapchain);
-	std::vector<vk::ImageView> imageViews;
-	imageViews.reserve(swapchainImages.size());
+	//std::vector<uint32_t> queueFamilyIndexes = {
+	//	static_cast<uint32_t>(graphicsQueueFamilyIndex),
+	//	static_cast<uint32_t>(presentQueueFamilyIndex)
+	//};
+
+	//const auto iter = std::unique(queueFamilyIndexes.begin(), queueFamilyIndexes.end());
+	//queueFamilyIndexes.erase(queueFamilyIndexes.begin(), iter);
+
+	//// TODO: find more informations about parts of this struct
+	//vk::SwapchainCreateInfoKHR swapchainInfo(
+	//	vk::SwapchainCreateFlagsKHR(),
+	//	surface ,
+	//	surfaceCapabilities.minImageCount,
+	//	format,
+	//	vk::ColorSpaceKHR::eSrgbNonlinear,
+	//	swapchainExtent,
+	//	1,
+	//	vk::ImageUsageFlagBits::eColorAttachment,
+	//	vk::SharingMode::eExclusive,
+	//	{},
+	//	preTransform,
+	//	compositeAlpha,
+	//	swapchainPresentMode,
+	//	true,
+	//	nullptr
+	//);
+	//
+	//vk::SwapchainKHR swapchain = device.createSwapchainKHR(swapchainInfo);
+
+	//std::vector<vk::Image> swapchainImages = device.getSwapchainImagesKHR(swapchain);
+	//std::vector<vk::ImageView> imageViews;
+	//imageViews.reserve(swapchainImages.size());
 
 	// TODO: read about componentMapping and ImageSubresourceRange
 	vk::ComponentMapping componentMapping(
@@ -341,22 +335,22 @@ int main(int argc, char* argv[]) {
 		vk::ComponentSwizzle::eA
 	);
 
-	vk::ImageSubresourceRange subResourceRange(vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1);
+	//vk::ImageSubresourceRange subResourceRange(vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1);
 
-	for (const auto& image : swapchainImages) {
-		vk::ImageViewCreateInfo imageViewCreateInfo(
-			vk::ImageViewCreateFlags(),
-			image,
-			vk::ImageViewType::e2D,
-			format,
-			componentMapping,
-			subResourceRange
-		);
-		imageViews.push_back(device.createImageView(imageViewCreateInfo));
-	}
+	//for (const auto& image : swapchainImages) {
+	//	vk::ImageViewCreateInfo imageViewCreateInfo(
+	//		vk::ImageViewCreateFlags(),
+	//		image,
+	//		vk::ImageViewType::e2D,
+	//		format,
+	//		componentMapping,
+	//		subResourceRange
+	//	);
+	//	imageViews.push_back(device.createImageView(imageViewCreateInfo));
+	//}
 
 	const vk::Format depthFormat = vk::Format::eD16Unorm;
-	vk::FormatProperties formatProperties = gpu.getFormatProperties(depthFormat);
+	vk::FormatProperties formatProperties = base.gpu.getFormatProperties(depthFormat);
 
 	// TODO: tiling??????
 	vk::ImageTiling tiling;
@@ -374,29 +368,29 @@ int main(int argc, char* argv[]) {
 		vk::ImageCreateFlags(),
 		vk::ImageType::e2D,
 		depthFormat,
-		vk::Extent3D(swapchainExtent, 1),
+		vk::Extent3D(base.swapchainExtent, 1),
 		1, 1,
 		vk::SampleCountFlagBits::e1,
 		tiling,
 		vk::ImageUsageFlagBits::eDepthStencilAttachment
 	);
 
-	vk::Image depthImage = device.createImage(imageInfo);
+	vk::Image depthImage = base.device.createImage(imageInfo);
 
 	// TODO: Dealing with memory allocation in Vulkan
-	vk::PhysicalDeviceMemoryProperties memoryProperties = gpu.getMemoryProperties();
-	vk::MemoryRequirements memoryRequirements = device.getImageMemoryRequirements(depthImage);
+	vk::PhysicalDeviceMemoryProperties memoryProperties = base.gpu.getMemoryProperties();
+	vk::MemoryRequirements memoryRequirements = base.device.getImageMemoryRequirements(depthImage);
 	uint32_t typeBits = memoryRequirements.memoryTypeBits;
 	uint32_t typeIndex = findMemoryType(memoryProperties, typeBits, vk::MemoryPropertyFlagBits::eDeviceLocal);
 
 	// This part probably clear
-	vk::DeviceMemory depthMemory = device.allocateMemory(vk::MemoryAllocateInfo(memoryRequirements.size, typeIndex));
-	device.bindImageMemory(depthImage, depthMemory, 0);
+	vk::DeviceMemory depthMemory = base.device.allocateMemory(vk::MemoryAllocateInfo(memoryRequirements.size, typeIndex));
+	base.device.bindImageMemory(depthImage, depthMemory, 0);
 
 	// TODO: what is component mapping and subresource range (2)
 	vk::ImageSubresourceRange depthSubResourceRange(vk::ImageAspectFlagBits::eDepth, 0, 1, 0, 1);
 
-	vk::ImageView depthView = device.createImageView(
+	vk::ImageView depthView = base.device.createImageView(
 		vk::ImageViewCreateInfo(
 			vk::ImageViewCreateFlags(),
 			depthImage,
@@ -423,24 +417,24 @@ int main(int argc, char* argv[]) {
 	);
 	glm::mat4x4 mvpc = clip * projection * view * model;
 
-	vk::Buffer uniformDataBuffer = device.createBuffer(
+	vk::Buffer uniformDataBuffer = base.device.createBuffer(
 		vk::BufferCreateInfo(vk::BufferCreateFlags(), sizeof(mvpc), vk::BufferUsageFlagBits::eUniformBuffer)
 	);
 	
-	vk::MemoryRequirements uniformMemoryReq = device.getBufferMemoryRequirements(uniformDataBuffer);
+	vk::MemoryRequirements uniformMemoryReq = base.device.getBufferMemoryRequirements(uniformDataBuffer);
 	uint32_t uniformTypeIndex = findMemoryType(
 		memoryProperties, 
 		uniformMemoryReq.memoryTypeBits,
 		vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent
 	);
 
-	vk::DeviceMemory uniformDataMemory = device.allocateMemory(vk::MemoryAllocateInfo(uniformMemoryReq.size, uniformTypeIndex));
+	vk::DeviceMemory uniformDataMemory = base.device.allocateMemory(vk::MemoryAllocateInfo(uniformMemoryReq.size, uniformTypeIndex));
 
-	uint8_t* data = static_cast<uint8_t*>(device.mapMemory(uniformDataMemory, 0, uniformMemoryReq.size));
+	uint8_t* data = static_cast<uint8_t*>(base.device.mapMemory(uniformDataMemory, 0, uniformMemoryReq.size));
 	memcpy(data, &mvpc, sizeof(mvpc));
-	device.unmapMemory(uniformDataMemory);
+	base.device.unmapMemory(uniformDataMemory);
 
-	device.bindBufferMemory(uniformDataBuffer, uniformDataMemory, 0);
+	base.device.bindBufferMemory(uniformDataBuffer, uniformDataMemory, 0);
 
 	// TODO: make sure what is descriptor set need for
 	// Descriptor set stuff and pipelineLayout
@@ -451,17 +445,17 @@ int main(int argc, char* argv[]) {
 		vk::ShaderStageFlagBits::eVertex
 	);
 
-	vk::DescriptorSetLayout descriptorSetLayout = device.createDescriptorSetLayout(
+	vk::DescriptorSetLayout descriptorSetLayout = base.device.createDescriptorSetLayout(
 		vk::DescriptorSetLayoutCreateInfo(vk::DescriptorSetLayoutCreateFlags(), descriptorSetLayoutBinding)
 	);
 	
-	vk::PipelineLayout pipelineLayout = device.createPipelineLayout(
+	vk::PipelineLayout pipelineLayout = base.device.createPipelineLayout(
 		vk::PipelineLayoutCreateInfo(vk::PipelineLayoutCreateFlags(), descriptorSetLayout)
 	);
 
 	// Descriptor pool loool
 	vk::DescriptorPoolSize poolSize(vk::DescriptorType::eUniformBuffer, 1);
-	vk::DescriptorPool descriptorPool = device.createDescriptorPool(
+	vk::DescriptorPool descriptorPool = base.device.createDescriptorPool(
 		vk::DescriptorPoolCreateInfo(
 			vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet,
 			/* maxSets */1, 
@@ -471,7 +465,7 @@ int main(int argc, char* argv[]) {
 
 	// allocate a desriptor set
 	vk::DescriptorSetAllocateInfo descriptorSetAllocateInfo(descriptorPool, descriptorSetLayout);
-	vk::DescriptorSet descriptorSet = device.allocateDescriptorSets(descriptorSetAllocateInfo).front();
+	vk::DescriptorSet descriptorSet = base.device.allocateDescriptorSets(descriptorSetAllocateInfo).front();
 
 	// descriptor buffer (what a....)
 	vk::DescriptorBufferInfo descriptorBufferInfo(
@@ -488,13 +482,13 @@ int main(int argc, char* argv[]) {
 		{},
 		descriptorBufferInfo
 	);
-	device.updateDescriptorSets(writeDescriptorSet, nullptr);
+	base.device.updateDescriptorSets(writeDescriptorSet, nullptr);
 
 	// TODO: read about attachment description
 	std::array<vk::AttachmentDescription, 2> attachmentDescriptions;
 	attachmentDescriptions[0] = vk::AttachmentDescription(
 		vk::AttachmentDescriptionFlags(),
-		format,
+		base.format,
 		vk::SampleCountFlagBits::e1,
 		vk::AttachmentLoadOp::eClear,
 		vk::AttachmentStoreOp::eStore,
@@ -527,7 +521,7 @@ int main(int argc, char* argv[]) {
 		& depthReference
 	);
 
-	vk::RenderPass renderPass = device.createRenderPass(
+	vk::RenderPass renderPass = base.device.createRenderPass(
 		vk::RenderPassCreateInfo(
 			vk::RenderPassCreateFlags(),
 			attachmentDescriptions,
@@ -537,8 +531,8 @@ int main(int argc, char* argv[]) {
 
 
 	// shader modules stuff
-	vk::ShaderModule cubeVertexShaderModule = loadShaderModule("../shaders/cube.vert.spv", device);
-	vk::ShaderModule cubeFragmentShaderModule = loadShaderModule("../shaders/cube.frag.spv", device);
+	vk::ShaderModule cubeVertexShaderModule = loadShaderModule("../shaders/cube.vert.spv", base.device);
+	vk::ShaderModule cubeFragmentShaderModule = loadShaderModule("../shaders/cube.frag.spv", base.device);
 
 	// frame buffer stuff
 	std::array<vk::ImageView, 2> attachments;
@@ -548,34 +542,34 @@ int main(int argc, char* argv[]) {
 		vk::FramebufferCreateFlags(),
 		renderPass,
 		attachments,
-		swapchainExtent.width,
-		swapchainExtent.height,
+		base.swapchainExtent.width,
+		base.swapchainExtent.height,
 		1
 	);
 
 	std::vector<vk::Framebuffer> framebuffers;
-	framebuffers.reserve(imageViews.size());
-	for (const auto& imageView : imageViews) {
+	framebuffers.reserve(base.imageViews.size());
+	for (const auto& imageView : base.imageViews) {
 		attachments[0] = imageView;
-		framebuffers.push_back(device.createFramebuffer(frameBufferCreateInfo));
+		framebuffers.push_back(base.device.createFramebuffer(frameBufferCreateInfo));
 	}
 
 	// command pool and command buffer
-	vk::CommandPool commandPool = device.createCommandPool(
+	vk::CommandPool commandPool = base.device.createCommandPool(
 		vk::CommandPoolCreateInfo(
 			vk::CommandPoolCreateFlagBits::eResetCommandBuffer,
-			graphicsQueueFamilyIndex
+			base.queues.graphicsQueueIndex
 		)
 	);
 
-	vk::CommandBuffer commandBuffer = device.allocateCommandBuffers(vk::CommandBufferAllocateInfo(
+	vk::CommandBuffer commandBuffer = base.device.allocateCommandBuffers(vk::CommandBufferAllocateInfo(
 		commandPool,
 		vk::CommandBufferLevel::ePrimary,
 		1)
 	).front();
 
 	// vertex buffer
-	vk::Buffer vertexBuffer = device.createBuffer(
+	vk::Buffer vertexBuffer = base.device.createBuffer(
 		vk::BufferCreateInfo(
 			vk::BufferCreateFlags(),
 			sizeof(coloredCubeData),
@@ -583,16 +577,16 @@ int main(int argc, char* argv[]) {
 		)
 	);
 
-	vk::MemoryRequirements bufferMemoryRequiremenents = device.getBufferMemoryRequirements(vertexBuffer);
-	uint32_t memoryTypeIndex = findMemoryType(gpu.getMemoryProperties(), bufferMemoryRequiremenents.memoryTypeBits,
+	vk::MemoryRequirements bufferMemoryRequiremenents = base.device.getBufferMemoryRequirements(vertexBuffer);
+	uint32_t memoryTypeIndex = findMemoryType(base.gpu.getMemoryProperties(), bufferMemoryRequiremenents.memoryTypeBits,
 		vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
-	vk::DeviceMemory deviceMemory = device.allocateMemory(vk::MemoryAllocateInfo(bufferMemoryRequiremenents.size, memoryTypeIndex));
+	vk::DeviceMemory deviceMemory = base.device.allocateMemory(vk::MemoryAllocateInfo(bufferMemoryRequiremenents.size, memoryTypeIndex));
 
-	data = static_cast<uint8_t*>(device.mapMemory(deviceMemory, 0, bufferMemoryRequiremenents.size));
+	data = static_cast<uint8_t*>(base.device.mapMemory(deviceMemory, 0, bufferMemoryRequiremenents.size));
 	memcpy(data, coloredCubeData, sizeof(coloredCubeData));
-	device.unmapMemory(deviceMemory);
+	base.device.unmapMemory(deviceMemory);
 
-	device.bindBufferMemory(vertexBuffer, deviceMemory, 0);
+	base.device.bindBufferMemory(vertexBuffer, deviceMemory, 0);
 
 	// pipeline 
 	std::array<vk::PipelineShaderStageCreateInfo, 2> pipelineShaderStagesCreateInfos = {
@@ -724,21 +718,21 @@ int main(int argc, char* argv[]) {
 
 	vk::Result result;
 	vk::Pipeline pipeline;
-	std::tie(result, pipeline) = device.createGraphicsPipeline(nullptr, graphicsPipelineCreateInfo);
+	std::tie(result, pipeline) = base.device.createGraphicsPipeline(nullptr, graphicsPipelineCreateInfo);
 
 
 	uint32_t frameNumber = 0;
-	while (!isShouldClose) {
-		while (SDL_PollEvent(&event) != 0) {
+	while (!rendererWindow->isShouldClose) {
+		while (rendererWindow->PollEvents(&event)) {
 			if (event.type == SDL_QUIT || (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE))
-				isShouldClose = true;
+				rendererWindow->isShouldClose = true;
 		}
 
 		// Not sure that this is part of vertex buffer stuff
-		vk::Semaphore imageAcquiredSemaphore = device.createSemaphore(vk::SemaphoreCreateInfo(vk::SemaphoreCreateFlags()));
+		vk::Semaphore imageAcquiredSemaphore = base.device.createSemaphore(vk::SemaphoreCreateInfo(vk::SemaphoreCreateFlags()));
 
-		vk::ResultValue<uint32_t> currentBuffer = device.acquireNextImageKHR(
-			swapchain,
+		vk::ResultValue<uint32_t> currentBuffer = base.device.acquireNextImageKHR(
+			base.swapchain,
 			1000000000,
 			imageAcquiredSemaphore,
 			nullptr
@@ -786,16 +780,16 @@ int main(int argc, char* argv[]) {
 
 		//vk::DeviceMemory uniformDataMemory = device.allocateMemory(vk::MemoryAllocateInfo(uniformMemoryReq.size, uniformTypeIndex));
 
-		data = static_cast<uint8_t*>(device.mapMemory(uniformDataMemory, 0, uniformMemoryReq.size));
+		data = static_cast<uint8_t*>(base.device.mapMemory(uniformDataMemory, 0, uniformMemoryReq.size));
 		memcpy(data, &mvpc, sizeof(mvpc));
-		device.unmapMemory(uniformDataMemory);
+		base.device.unmapMemory(uniformDataMemory);
 
 		commandBuffer.begin(vk::CommandBufferBeginInfo(vk::CommandBufferUsageFlags()));
 
 		vk::RenderPassBeginInfo renderPassBeginInfo(
 			renderPass,
 			framebuffers[currentBuffer.value],
-			vk::Rect2D(vk::Offset2D(0, 0), swapchainExtent),
+			vk::Rect2D(vk::Offset2D(0, 0), base.swapchainExtent),
 			clearValues
 		);
 
@@ -813,14 +807,14 @@ int main(int argc, char* argv[]) {
 			0,
 			vk::Viewport(
 				0.0f, 0.0f,
-				static_cast<float>(swapchainExtent.width),
-				static_cast<float>(swapchainExtent.height),
+				static_cast<float>(base.swapchainExtent.width),
+				static_cast<float>(base.swapchainExtent.height),
 				0.0f,
 				1.0f
 			)
 		);
 
-		commandBuffer.setScissor(0, vk::Rect2D(vk::Offset2D(0, 0), swapchainExtent));
+		commandBuffer.setScissor(0, vk::Rect2D(vk::Offset2D(0, 0), base.swapchainExtent));
 
 		commandBuffer.draw(12 * 3, 1, 0, 0);
 
@@ -831,62 +825,62 @@ int main(int argc, char* argv[]) {
 		//submitAndWait(device, graphicsQueue, commandBuffer);
 		
 		// submiting to queue and present
-		vk::Fence drawFence = device.createFence(vk::FenceCreateInfo());
+		vk::Fence drawFence = base.device.createFence(vk::FenceCreateInfo());
 		vk::PipelineStageFlags waitDestinationStageMask(vk::PipelineStageFlagBits::eColorAttachmentOutput);
 		vk::SubmitInfo submitInfo(
 			imageAcquiredSemaphore,
 			waitDestinationStageMask,
 			commandBuffer
 		);
-		graphicsQueue.submit(submitInfo, drawFence);
+		base.queues.graphicsQueue.submit(submitInfo, drawFence);
 
-		while (vk::Result::eTimeout == device.waitForFences(drawFence, VK_TRUE, 1000000000));
+		while (vk::Result::eTimeout == base.device.waitForFences(drawFence, VK_TRUE, 1000000000));
 
-		vk::Result drawResult = graphicsQueue.presentKHR(vk::PresentInfoKHR({}, swapchain, currentBuffer.value));
+		vk::Result drawResult = base.queues.graphicsQueue.presentKHR(vk::PresentInfoKHR({}, base.swapchain, currentBuffer.value));
 
-		device.waitIdle();
+		base.device.waitIdle();
 
-		device.destroyFence(drawFence);
-		device.destroySemaphore(imageAcquiredSemaphore);
+		base.device.destroyFence(drawFence);
+		base.device.destroySemaphore(imageAcquiredSemaphore);
 	}
 	
-	device.destroyPipeline(pipeline);
+	base.device.destroyPipeline(pipeline);
 
-	device.freeMemory(deviceMemory);
-	device.destroyBuffer(vertexBuffer);
+	base.device.freeMemory(deviceMemory);
+	base.device.destroyBuffer(vertexBuffer);
 
-	device.freeCommandBuffers(commandPool, commandBuffer);
-	device.destroyCommandPool(commandPool);
+	base.device.freeCommandBuffers(commandPool, commandBuffer);
+	base.device.destroyCommandPool(commandPool);
 
 	for (const auto& framebuffer : framebuffers) {
-		device.destroyFramebuffer(framebuffer);
+		base.device.destroyFramebuffer(framebuffer);
 	}
 
-	device.destroyShaderModule(cubeFragmentShaderModule);
-	device.destroyShaderModule(cubeVertexShaderModule);
+	base.device.destroyShaderModule(cubeFragmentShaderModule);
+	base.device.destroyShaderModule(cubeVertexShaderModule);
 	
-	device.destroyRenderPass(renderPass);
+	base.device.destroyRenderPass(renderPass);
 
-	device.freeDescriptorSets(descriptorPool, descriptorSet);
-	device.destroyDescriptorPool(descriptorPool);
+	base.device.freeDescriptorSets(descriptorPool, descriptorSet);
+	base.device.destroyDescriptorPool(descriptorPool);
 
-	device.destroyPipelineLayout(pipelineLayout);
-	device.destroyDescriptorSetLayout(descriptorSetLayout);
+	base.device.destroyPipelineLayout(pipelineLayout);
+	base.device.destroyDescriptorSetLayout(descriptorSetLayout);
 
-	device.freeMemory(uniformDataMemory);
-	device.destroyBuffer(uniformDataBuffer);
-	device.destroyImageView(depthView);
-	device.freeMemory(depthMemory);
-	device.destroyImage(depthImage);
-	for (auto& imageView : imageViews) {
-		device.destroyImageView(imageView);
+	base.device.freeMemory(uniformDataMemory);
+	base.device.destroyBuffer(uniformDataBuffer);
+	base.device.destroyImageView(depthView);
+	base.device.freeMemory(depthMemory);
+	base.device.destroyImage(depthImage);
+	for (auto& imageView : base.imageViews) {
+		base.device.destroyImageView(imageView);
 	}
-	device.destroySwapchainKHR(swapchain);
-	instance.destroySurfaceKHR(surface);
-	device.destroy();
-	instance.destroyDebugUtilsMessengerEXT(debugMessenger, nullptr, dispatcher);
-	instance.destroy();
-	SDL_DestroyWindow(window);
+	base.device.destroySwapchainKHR(base.swapchain);
+	base.instance.destroySurfaceKHR(base.surface);
+	base.device.destroy();
+	//base.instance.destroyDebugUtilsMessengerEXT(base.debugMessenger, nullptr, base.dispatcher);
+	base.instance.destroy();
+	//SDL_DestroyWindow(window);
 
 	return 0;
 }
