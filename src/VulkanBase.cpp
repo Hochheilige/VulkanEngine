@@ -8,15 +8,20 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityF
 	return VK_FALSE;
 };
 
-#define DEBUG
+VulkanBase::~VulkanBase() {
+	instance.destroySurfaceKHR(surface);
+	device.destroy();
+	instance.destroyDebugUtilsMessengerEXT(messenger, nullptr, dispatcher);
+	instance.destroy();
+}
 
 void VulkanBase::init(SDL_Window* window) {
 
-#ifdef DEBUG
+#ifndef NDEBUG
 	AddLayerProperty("VK_LAYER_KHRONOS_validation");
 	AddInstanceExtension("VK_EXT_debug_utils");
 	AddInstanceExtension("VK_EXT_debug_report");
-#endif // DEBUG
+#endif // NDEBUG
 
 	// Add surface extensions from SDL window
 	uint32_t sdlExtensionsCount = 0;
@@ -34,12 +39,12 @@ void VulkanBase::init(SDL_Window* window) {
 	);
 	instance = vk::createInstance(instanceInfo);
 
-#ifdef DEBUG
+#ifndef NDEBUG
 	// TODO: Find some additional information about vk::DispatchLoaderDynamic
-	const auto dispatcher = vk::DispatchLoaderDynamic(instance, vkGetInstanceProcAddr);
+	dispatcher = vk::DispatchLoaderDynamic(instance, vkGetInstanceProcAddr);
 
 	// TODO: Read some info about debug messengers in Vulkan
-	auto debugMessenger = instance.createDebugUtilsMessengerEXT(
+	messenger = instance.createDebugUtilsMessengerEXT(
 		vk::DebugUtilsMessengerCreateInfoEXT{
 			{},
 			vk::DebugUtilsMessageSeverityFlagBitsEXT::eError | vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning |
@@ -99,69 +104,4 @@ void VulkanBase::init(SDL_Window* window) {
 
 	// TODO: read about surface capabilities
 	surfaceCapabilities = gpu.getSurfaceCapabilitiesKHR(surface);
-
-	// TODO: read about Extent2D
-	swapchainExtent = surfaceCapabilities.currentExtent;
-
-	// TODO: clarify present modes
-	swapchainPresentMode = vk::PresentModeKHR::eFifo;
-
-	// TODO: what is it?
-	vk::SurfaceTransformFlagBitsKHR preTransform = (surfaceCapabilities.supportedTransforms & vk::SurfaceTransformFlagBitsKHR::eIdentity)
-		? vk::SurfaceTransformFlagBitsKHR::eIdentity
-		: surfaceCapabilities.currentTransform;
-
-	vk::CompositeAlphaFlagBitsKHR compositeAlpha = (surfaceCapabilities.supportedCompositeAlpha & vk::CompositeAlphaFlagBitsKHR::ePreMultiplied)
-		? vk::CompositeAlphaFlagBitsKHR::ePreMultiplied
-		: (surfaceCapabilities.supportedCompositeAlpha & vk::CompositeAlphaFlagBitsKHR::ePostMultiplied)
-		? vk::CompositeAlphaFlagBitsKHR::ePostMultiplied
-		: (surfaceCapabilities.supportedCompositeAlpha & vk::CompositeAlphaFlagBitsKHR::eInherit)
-		? vk::CompositeAlphaFlagBitsKHR::eInherit
-		: vk::CompositeAlphaFlagBitsKHR::eOpaque;
-
-	// TODO: find more informations about parts of this struct
-	vk::SwapchainCreateInfoKHR swapchainInfo(
-		vk::SwapchainCreateFlagsKHR(),
-		surface,
-		surfaceCapabilities.minImageCount,
-		format,
-		vk::ColorSpaceKHR::eSrgbNonlinear,
-		swapchainExtent,
-		1,
-		vk::ImageUsageFlagBits::eColorAttachment,
-		vk::SharingMode::eExclusive,
-		{},
-		preTransform,
-		compositeAlpha,
-		swapchainPresentMode,
-		true,
-		nullptr
-	);
-
-	swapchain = device.createSwapchainKHR(swapchainInfo);
-
-	swapchainImages = device.getSwapchainImagesKHR(swapchain);
-	imageViews.reserve(swapchainImages.size());
-
-	// TODO: read about componentMapping and ImageSubresourceRange
-	vk::ComponentMapping componentMapping(
-		vk::ComponentSwizzle::eR,
-		vk::ComponentSwizzle::eG,
-		vk::ComponentSwizzle::eB,
-		vk::ComponentSwizzle::eA
-	);
-
-	vk::ImageSubresourceRange subResourceRange(vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1);
-
-	for (const auto& image : swapchainImages) {
-		vk::ImageViewCreateInfo imageViewCreateInfo(
-			vk::ImageViewCreateFlags(),
-			image,
-			vk::ImageViewType::e2D,
-			format,
-			componentMapping,
-			subResourceRange
-		);
-		imageViews.push_back(device.createImageView(imageViewCreateInfo));
-	}
 }

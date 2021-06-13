@@ -7,10 +7,19 @@
 
 #include <vector>
 
+struct Queues {
+	vk::Queue graphicsQueue;
+	uint32_t graphicsQueueIndex;
+	vk::Queue presentQueue;
+	uint32_t presentQueueIndex;
+	vk::Queue computeQueue;
+	uint32_t computeQueueIndex;
+};
+
 class VulkanBase {
 public:
 	VulkanBase() = default;
-	~VulkanBase() {}
+	~VulkanBase();
 
 	void init(SDL_Window* window);
 
@@ -26,9 +35,16 @@ public:
 		deviceExtensions.push_back(extension);
 	}
 
+	const vk::Instance& GetInstance() { return instance; }
+	const vk::PhysicalDevice& GetPhysicalDevice() { return gpu; }
+	const vk::Device& GetDevice() { return device; }
+	const vk::SurfaceKHR& GetSurface() { return surface; }
+	const Queues& GetQueues() { return queues; }
+	const vk::Format& GetFormat() { return format; }
+	const vk::SurfaceCapabilitiesKHR GetSurfaceCapabilities() { return surfaceCapabilities; }
 
 
-public:
+private:
 	vk::Instance instance;
 	vk::PhysicalDevice gpu;
 	vk::Device device;
@@ -36,14 +52,7 @@ public:
 
 	std::vector<vk::QueueFamilyProperties> queueFamilyProperties;
 
-	struct {
-		vk::Queue graphicsQueue;
-		uint32_t graphicsQueueIndex;
-		vk::Queue presentQueue;
-		uint32_t presentQueueIndex;
-		vk::Queue computeQueue;
-		uint32_t computeQueueIndex;
-	} queues;
+	Queues queues;
 
 	std::vector<vk::SurfaceFormatKHR> formats;
 
@@ -53,16 +62,11 @@ public:
 	// TODO: read about surface capabilities
 	vk::SurfaceCapabilitiesKHR surfaceCapabilities;
 
-	// TODO: read about Extent2D
-	vk::Extent2D swapchainExtent;
+#ifndef NDEBUD
+	vk::DispatchLoaderDynamic dispatcher;
+	vk::DebugUtilsMessengerEXT messenger;
+#endif // !NDEBUD
 
-	// TODO: clarify present modes
-	vk::PresentModeKHR swapchainPresentMode;
-
-	vk::SwapchainKHR swapchain;
-
-	std::vector<vk::Image> swapchainImages;
-	std::vector<vk::ImageView> imageViews;
 
 	std::vector<const char*> layerProperties;
 	std::vector<const char*> instanceExtensions;
