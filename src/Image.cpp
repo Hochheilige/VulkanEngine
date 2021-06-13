@@ -9,6 +9,8 @@ Image::~Image() {
 }
 
 void Image::Init(const VulkanBase& base, vk::ImageAspectFlagBits flags) {
+
+	// This is need only for depth image and this should be clear
 	// TODO: tiling??????
 	vk::ImageTiling tiling;
 	if (formatProperties.linearTilingFeatures & vk::FormatFeatureFlagBits::eDepthStencilAttachment) {

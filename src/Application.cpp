@@ -191,24 +191,14 @@ int main(int argc, char* argv[]) {
 	);
 	glm::mat4x4 mvpc = clip * projection * view * model;
 
-	vk::Buffer uniformDataBuffer = base->GetDevice().createBuffer(
-		vk::BufferCreateInfo(vk::BufferCreateFlags(), sizeof(mvpc), vk::BufferUsageFlagBits::eUniformBuffer)
-	);
-	
-	vk::MemoryRequirements uniformMemoryReq = base->GetDevice().getBufferMemoryRequirements(uniformDataBuffer);
-	uint32_t uniformTypeIndex = utils::findMemoryType(
-		depthImage.GetMemoryProperties(), 
-		uniformMemoryReq.memoryTypeBits,
-		vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent
-	);
+	Buffer<glm::mat4x4> uniformBuffer(base->GetPhysicalDevice(), vk::BufferUsageFlagBits::eUniformBuffer);
+	uniformBuffer.Init(base->GetDevice());
+	uniformBuffer.BindBuffer(base->GetDevice());
 
-	vk::DeviceMemory uniformDataMemory = base->GetDevice().allocateMemory(vk::MemoryAllocateInfo(uniformMemoryReq.size, uniformTypeIndex));
-
-	uint8_t* data = static_cast<uint8_t*>(base->GetDevice().mapMemory(uniformDataMemory, 0, uniformMemoryReq.size));
-	memcpy(data, &mvpc, sizeof(mvpc));
-	base->GetDevice().unmapMemory(uniformDataMemory);
-
-	base->GetDevice().bindBufferMemory(uniformDataBuffer, uniformDataMemory, 0);
+	// vertex buffer
+	Buffer<VertexPC[36]> vertexBuffer(base->GetPhysicalDevice(), vk::BufferUsageFlagBits::eVertexBuffer);
+	vertexBuffer.Init(base->GetDevice());
+	vertexBuffer.CopyBuffer(base->GetDevice(), coloredCubeData);
 
 	// TODO: make sure what is descriptor set need for
 	// Descriptor set stuff and pipelineLayout
@@ -243,7 +233,7 @@ int main(int argc, char* argv[]) {
 
 	// descriptor buffer (what a....)
 	vk::DescriptorBufferInfo descriptorBufferInfo(
-		uniformDataBuffer,
+		uniformBuffer.GetBuffer(),
 		/* offset */ 0,
 		/* range  */ sizeof(glm::mat4x4)
 	);
@@ -341,26 +331,6 @@ int main(int argc, char* argv[]) {
 		vk::CommandBufferLevel::ePrimary,
 		1)
 	).front();
-
-	// vertex buffer
-	vk::Buffer vertexBuffer = base->GetDevice().createBuffer(
-		vk::BufferCreateInfo(
-			vk::BufferCreateFlags(),
-			sizeof(coloredCubeData),
-			vk::BufferUsageFlagBits::eVertexBuffer
-		)
-	);
-
-	vk::MemoryRequirements bufferMemoryRequiremenents = base->GetDevice().getBufferMemoryRequirements(vertexBuffer);
-	uint32_t memoryTypeIndex = utils::findMemoryType(base->GetPhysicalDevice().getMemoryProperties(), bufferMemoryRequiremenents.memoryTypeBits,
-		vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
-	vk::DeviceMemory deviceMemory = base->GetDevice().allocateMemory(vk::MemoryAllocateInfo(bufferMemoryRequiremenents.size, memoryTypeIndex));
-
-	data = static_cast<uint8_t*>(base->GetDevice().mapMemory(deviceMemory, 0, bufferMemoryRequiremenents.size));
-	memcpy(data, coloredCubeData, sizeof(coloredCubeData));
-	base->GetDevice().unmapMemory(deviceMemory);
-
-	base->GetDevice().bindBufferMemory(vertexBuffer, deviceMemory, 0);
 
 	// pipeline 
 	std::array<vk::PipelineShaderStageCreateInfo, 2> pipelineShaderStagesCreateInfos = {
@@ -520,7 +490,7 @@ int main(int argc, char* argv[]) {
 	//	0.0f, 0.0f, 0.5f, 1.0f
 	//);
 
-	data = static_cast<uint8_t*>(base->GetDevice().mapMemory(uniformDataMemory, 0, uniformMemoryReq.size));
+	uniformBuffer.MapBuffer(base->GetDevice());
 
 	uint32_t frameNumber = 0;
 	while (!rendererWindow->isShouldClose) {
@@ -569,7 +539,7 @@ int main(int argc, char* argv[]) {
 		// ???
 		commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipelineLayout, 0, descriptorSet, nullptr);
 
-		commandBuffer.bindVertexBuffers(0, vertexBuffer, { 0 });
+		commandBuffer.bindVertexBuffers(0, vertexBuffer.GetBuffer(), { 0 });
 
 		commandBuffer.setViewport(
 			0,
@@ -583,20 +553,18 @@ int main(int argc, char* argv[]) {
 		);
 
 		commandBuffer.setScissor(0, vk::Rect2D(vk::Offset2D(0, 0), swapchain.GetExtent()));
+		model = glm::mat4(1.0f);
+		model = glm::translate(model, cubePositions[0]);
+		model = glm::scale(model, glm::vec3(0.2, 0.2, 0.2));
+		model = glm::rotate(model, glm::radians(frameNumber * 0.7f), glm::vec3(1.0f, 0.3f, 0.5f));
+		mvpc = clip * projection * view * model;
+		
+		++frameNumber;
 
-		for (size_t i = 0; i < cubePositions.size(); ++i) {
-			model = glm::mat4(1.0f);
-			model = glm::translate(model, cubePositions[i]);
-			model = glm::scale(model, glm::vec3(0.2, 0.2, 0.2));
-			model = glm::rotate(model, glm::radians(frameNumber * 0.7f), glm::vec3(1.0f, 0.3f, 0.5f));
-			mvpc = clip * projection * view * model;
-			
-			++frameNumber;
-
-			memcpy(data, &mvpc, sizeof(mvpc));
-
-			commandBuffer.draw(36, 1, 0, 0);
-		}
+		//memcpy((void*)uniformBuffer.GetData(), &mvpc, sizeof(mvpc));
+		uniformBuffer.MemoryCopy(mvpc);
+		commandBuffer.draw(36, 1, 0, 0);
+		
 
 		commandBuffer.endRenderPass();
 		commandBuffer.end();
@@ -626,8 +594,8 @@ int main(int argc, char* argv[]) {
 	
 	base->GetDevice().destroyPipeline(pipeline);
 
-	base->GetDevice().freeMemory(deviceMemory);
-	base->GetDevice().destroyBuffer(vertexBuffer);
+	base->GetDevice().freeMemory(vertexBuffer.GetDeviceMemory());
+	base->GetDevice().destroyBuffer(vertexBuffer.GetBuffer());
 
 	base->GetDevice().freeCommandBuffers(commandPool, commandBuffer);
 	base->GetDevice().destroyCommandPool(commandPool);
@@ -647,8 +615,8 @@ int main(int argc, char* argv[]) {
 	base->GetDevice().destroyPipelineLayout(pipelineLayout);
 	base->GetDevice().destroyDescriptorSetLayout(descriptorSetLayout);
 
-	base->GetDevice().freeMemory(uniformDataMemory);
-	base->GetDevice().destroyBuffer(uniformDataBuffer);
+	base->GetDevice().freeMemory(uniformBuffer.GetDeviceMemory());
+	base->GetDevice().destroyBuffer(uniformBuffer.GetBuffer());
 	base->GetDevice().destroyImageView(depthImage.GetImageView());
 	base->GetDevice().freeMemory(depthImage.GetDeviceMemory());
 	base->GetDevice().destroyImage(depthImage.GetImage());

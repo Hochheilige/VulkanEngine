@@ -3,6 +3,7 @@
 #include <Window.hpp>
 #include <Swapchain.hpp>
 #include <Image.hpp>
+#include <Buffer.hpp>
 
 class Engine {
 public:
