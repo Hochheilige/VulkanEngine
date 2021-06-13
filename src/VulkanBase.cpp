@@ -15,7 +15,7 @@ VulkanBase::~VulkanBase() {
 	instance.destroy();
 }
 
-void VulkanBase::init(SDL_Window* window) {
+void VulkanBase::Init(SDL_Window* window) {
 
 #ifndef NDEBUG
 	AddLayerProperty("VK_LAYER_KHRONOS_validation");

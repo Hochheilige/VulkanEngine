@@ -2,6 +2,7 @@
 
 #include <Window.hpp>
 #include <Swapchain.hpp>
+#include <Image.hpp>
 
 class Engine {
 public:

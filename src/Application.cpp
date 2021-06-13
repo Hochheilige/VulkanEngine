@@ -152,21 +152,7 @@ vk::ShaderModule loadShaderModule(const char* filePath, const vk::Device& device
 
 // copy-paste this functions from khronos repo
 
-uint32_t findMemoryType(vk::PhysicalDeviceMemoryProperties const& memoryProperties, uint32_t typeBits, vk::MemoryPropertyFlags requirementsMask) {
-	uint32_t typeIndex = uint32_t(~0);
-	for (uint32_t i = 0; i < memoryProperties.memoryTypeCount; i++)
-	{
-		if ((typeBits & 1) &&
-			((memoryProperties.memoryTypes[i].propertyFlags & requirementsMask) == requirementsMask))
-		{
-			typeIndex = i;
-			break;
-		}
-		typeBits >>= 1;
-	}
-	assert(typeIndex != uint32_t(~0));
-	return typeIndex;
-}
+
 
 void submitAndWait(vk::Device const& device, vk::Queue const& queue, vk::CommandBuffer const& commandBuffer) {
 	vk::Fence fence = device.createFence(vk::FenceCreateInfo());
@@ -182,69 +168,12 @@ int main(int argc, char* argv[]) {
 	SDL_Event event;
 	
 	std::unique_ptr<VulkanBase> base = std::make_unique<VulkanBase>();
-	base->init(rendererWindow->GetWindow());
+	base->Init(rendererWindow->GetWindow());
 
 	Swapchain swapchain(*base);
 
-	const vk::Format depthFormat = vk::Format::eD16Unorm;
-	vk::FormatProperties formatProperties = base->GetPhysicalDevice().getFormatProperties(depthFormat);
-
-	// TODO: tiling??????
-	vk::ImageTiling tiling;
-	if (formatProperties.linearTilingFeatures & vk::FormatFeatureFlagBits::eDepthStencilAttachment) {
-		tiling = vk::ImageTiling::eLinear;
-	}
-	else if (formatProperties.optimalTilingFeatures & vk::FormatFeatureFlagBits::eDepthStencilAttachment) {
-		tiling = vk::ImageTiling::eOptimal;
-	}
-	else {
-		throw std::runtime_error("DepthStencilAttachment is not supported for D16Unorm depth format.");
-	}
-
-	vk::ImageCreateInfo imageInfo(
-		vk::ImageCreateFlags(),
-		vk::ImageType::e2D,
-		depthFormat,
-		vk::Extent3D(swapchain.GetExtent(), 1),
-		1, 1,
-		vk::SampleCountFlagBits::e1,
-		tiling,
-		vk::ImageUsageFlagBits::eDepthStencilAttachment
-	);
-
-	vk::Image depthImage = base->GetDevice().createImage(imageInfo);
-
-	// TODO: Dealing with memory allocation in Vulkan
-	vk::PhysicalDeviceMemoryProperties memoryProperties = base->GetPhysicalDevice().getMemoryProperties();
-	vk::MemoryRequirements memoryRequirements = base->GetDevice().getImageMemoryRequirements(depthImage);
-	uint32_t typeBits = memoryRequirements.memoryTypeBits;
-	uint32_t typeIndex = findMemoryType(memoryProperties, typeBits, vk::MemoryPropertyFlagBits::eDeviceLocal);
-
-	// This part probably clear
-	vk::DeviceMemory depthMemory = base->GetDevice().allocateMemory(vk::MemoryAllocateInfo(memoryRequirements.size, typeIndex));
-	base->GetDevice().bindImageMemory(depthImage, depthMemory, 0);
-
-	// TODO: what is component mapping and subresource range (2)
-	vk::ImageSubresourceRange depthSubResourceRange(vk::ImageAspectFlagBits::eDepth, 0, 1, 0, 1);
-
-	// TODO: read about componentMapping and ImageSubresourceRange
-	vk::ComponentMapping componentMapping(
-		vk::ComponentSwizzle::eR,
-		vk::ComponentSwizzle::eG,
-		vk::ComponentSwizzle::eB,
-		vk::ComponentSwizzle::eA
-	);
-
-	vk::ImageView depthView = base->GetDevice().createImageView(
-		vk::ImageViewCreateInfo(
-			vk::ImageViewCreateFlags(),
-			depthImage,
-			vk::ImageViewType::e2D,
-			depthFormat, 
-			componentMapping,
-			depthSubResourceRange
-		)
-	);
+	Image depthImage(base->GetPhysicalDevice(), vk::Format::eD16Unorm);
+	depthImage.Init(*base, vk::ImageAspectFlagBits::eDepth);
 
 	// Uniform buffer data
 	glm::mat4x4 model = glm::mat4x4(1.0f);
@@ -267,8 +196,8 @@ int main(int argc, char* argv[]) {
 	);
 	
 	vk::MemoryRequirements uniformMemoryReq = base->GetDevice().getBufferMemoryRequirements(uniformDataBuffer);
-	uint32_t uniformTypeIndex = findMemoryType(
-		memoryProperties, 
+	uint32_t uniformTypeIndex = utils::findMemoryType(
+		depthImage.GetMemoryProperties(), 
 		uniformMemoryReq.memoryTypeBits,
 		vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent
 	);
@@ -344,7 +273,7 @@ int main(int argc, char* argv[]) {
 	);
 	attachmentDescriptions[1] = vk::AttachmentDescription(
 		vk::AttachmentDescriptionFlags(),
-		depthFormat,
+		depthImage.GetFormat(),
 		vk::SampleCountFlagBits::e1,
 		vk::AttachmentLoadOp::eClear,
 		vk::AttachmentStoreOp::eDontCare,
@@ -363,7 +292,7 @@ int main(int argc, char* argv[]) {
 		{},
 		colorReference,
 		{},
-		& depthReference
+		&depthReference
 	);
 
 	vk::RenderPass renderPass = base->GetDevice().createRenderPass(
@@ -381,7 +310,7 @@ int main(int argc, char* argv[]) {
 
 	// frame buffer stuff
 	std::array<vk::ImageView, 2> attachments;
-	attachments[1] = depthView;
+	attachments[1] = depthImage.GetImageView();
 
 	vk::FramebufferCreateInfo frameBufferCreateInfo(
 		vk::FramebufferCreateFlags(),
@@ -423,7 +352,7 @@ int main(int argc, char* argv[]) {
 	);
 
 	vk::MemoryRequirements bufferMemoryRequiremenents = base->GetDevice().getBufferMemoryRequirements(vertexBuffer);
-	uint32_t memoryTypeIndex = findMemoryType(base->GetPhysicalDevice().getMemoryProperties(), bufferMemoryRequiremenents.memoryTypeBits,
+	uint32_t memoryTypeIndex = utils::findMemoryType(base->GetPhysicalDevice().getMemoryProperties(), bufferMemoryRequiremenents.memoryTypeBits,
 		vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
 	vk::DeviceMemory deviceMemory = base->GetDevice().allocateMemory(vk::MemoryAllocateInfo(bufferMemoryRequiremenents.size, memoryTypeIndex));
 
@@ -565,6 +494,33 @@ int main(int argc, char* argv[]) {
 	vk::Pipeline pipeline;
 	std::tie(result, pipeline) = base->GetDevice().createGraphicsPipeline(nullptr, graphicsPipelineCreateInfo);
 
+	std::vector<glm::vec3> cubePositions = {
+		glm::vec3(0.0f,  0.0f,  0.0f),
+		glm::vec3(2.0f,  5.0f, 15.0f),
+		glm::vec3(-1.5f, -2.2f, 2.5f),
+		glm::vec3(-3.8f, -2.0f, 12.3f),
+		glm::vec3(2.4f, -0.4f, 3.5f),
+		glm::vec3(-1.7f,  3.0f, 7.5f),
+		glm::vec3(1.3f, -2.0f, 2.5f),
+		glm::vec3(1.5f,  2.0f, 2.5f),
+		glm::vec3(1.5f,  0.2f, 1.5f),
+		glm::vec3(-1.3f,  1.0f, 1.5f),
+	};
+
+	view = glm::lookAt(
+		glm::vec3(-5.0f, 3.0f, -10.0f),
+		glm::vec3(0.0f, 0.0f, 0.0f),
+		glm::vec3(0.0f, -1.0f, 0.0f)
+	);
+	projection = glm::perspective(glm::radians(45.0f), 1.0f, 0.1f, 100.0f);
+	//clip = glm::mat4x4(
+	//	1.0f, 0.0f, 0.0f, 0.0f,
+	//	0.0f, -1.0f, 0.0f, 0.0f,
+	//	0.0f, 0.0f, 0.5f, 0.0f,
+	//	0.0f, 0.0f, 0.5f, 1.0f
+	//);
+
+	data = static_cast<uint8_t*>(base->GetDevice().mapMemory(uniformDataMemory, 0, uniformMemoryReq.size));
 
 	uint32_t frameNumber = 0;
 	while (!rendererWindow->isShouldClose) {
@@ -596,25 +552,7 @@ int main(int argc, char* argv[]) {
 		clearValues[1].depthStencil = vk::ClearDepthStencilValue(1.0f, 0);
 
 		// Uniform buffer data
-		model = glm::rotate(glm::mat4{ 1.0f }, glm::radians(frameNumber * 0.7f), glm::vec3(1.0f, 0.3f, 0.5f));
-		view = glm::lookAt(
-			glm::vec3(-5.0f, 3.0f, -10.0f),
-			glm::vec3(0.0f, 0.0f, 0.0f),
-			glm::vec3(0.0f, -1.0f, 0.0f)
-		);
-		projection = glm::perspective(glm::radians(45.0f), 1.0f, 0.1f, 100.0f);
-		clip = glm::mat4x4(
-			1.0f, 0.0f, 0.0f, 0.0f,
-			0.0f, -1.0f, 0.0f, 0.0f,
-			0.0f, 0.0f, 0.5f, 0.0f,
-			0.0f, 0.0f, 0.5f, 1.0f
-		);
-		mvpc = clip * projection * view * model;
-		++frameNumber;
 
-		data = static_cast<uint8_t*>(base->GetDevice().mapMemory(uniformDataMemory, 0, uniformMemoryReq.size));
-		memcpy(data, &mvpc, sizeof(mvpc));
-		base->GetDevice().unmapMemory(uniformDataMemory);
 
 		commandBuffer.begin(vk::CommandBufferBeginInfo(vk::CommandBufferUsageFlags()));
 
@@ -646,7 +584,19 @@ int main(int argc, char* argv[]) {
 
 		commandBuffer.setScissor(0, vk::Rect2D(vk::Offset2D(0, 0), swapchain.GetExtent()));
 
-		commandBuffer.draw(12 * 3, 1, 0, 0);
+		for (size_t i = 0; i < cubePositions.size(); ++i) {
+			model = glm::mat4(1.0f);
+			model = glm::translate(model, cubePositions[i]);
+			model = glm::scale(model, glm::vec3(0.2, 0.2, 0.2));
+			model = glm::rotate(model, glm::radians(frameNumber * 0.7f), glm::vec3(1.0f, 0.3f, 0.5f));
+			mvpc = clip * projection * view * model;
+			
+			++frameNumber;
+
+			memcpy(data, &mvpc, sizeof(mvpc));
+
+			commandBuffer.draw(36, 1, 0, 0);
+		}
 
 		commandBuffer.endRenderPass();
 		commandBuffer.end();
@@ -699,9 +649,9 @@ int main(int argc, char* argv[]) {
 
 	base->GetDevice().freeMemory(uniformDataMemory);
 	base->GetDevice().destroyBuffer(uniformDataBuffer);
-	base->GetDevice().destroyImageView(depthView);
-	base->GetDevice().freeMemory(depthMemory);
-	base->GetDevice().destroyImage(depthImage);
+	base->GetDevice().destroyImageView(depthImage.GetImageView());
+	base->GetDevice().freeMemory(depthImage.GetDeviceMemory());
+	base->GetDevice().destroyImage(depthImage.GetImage());
 	for (auto& imageView : swapchain.GetImageViews()) {
 		base->GetDevice().destroyImageView(imageView);
 	}

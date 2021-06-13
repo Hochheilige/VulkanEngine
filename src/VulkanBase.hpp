@@ -21,7 +21,7 @@ public:
 	VulkanBase() {};
 	~VulkanBase();
 
-	void init(SDL_Window* window);
+	void Init(SDL_Window* window);
 
 	inline void AddLayerProperty(const char* property) { 
 		layerProperties.push_back(property); 
