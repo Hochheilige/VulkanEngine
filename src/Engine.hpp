@@ -5,6 +5,8 @@
 #include <Image.hpp>
 #include <Buffer.hpp>
 #include <DescriptorSet.hpp>
+#include <RenderPass.hpp>
+#include <Framebuffer.hpp>
 
 class Engine {
 public:

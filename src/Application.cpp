@@ -157,52 +157,9 @@ int main(int argc, char* argv[]) {
 	descriptorSet.CreateDescriptorSet(base->GetDevice());
 	descriptorSet.UpdateDescriptorSet<glm::mat4x4>(base->GetDevice(), uniformBuffer.GetBuffer());
 
-	// TODO: read about attachment description
-	std::array<vk::AttachmentDescription, 2> attachmentDescriptions;
-	attachmentDescriptions[0] = vk::AttachmentDescription(
-		vk::AttachmentDescriptionFlags(),
-		base->GetFormat(),
-		vk::SampleCountFlagBits::e1,
-		vk::AttachmentLoadOp::eClear,
-		vk::AttachmentStoreOp::eStore,
-		vk::AttachmentLoadOp::eDontCare,
-		vk::AttachmentStoreOp::eDontCare,
-		vk::ImageLayout::eUndefined,
-		vk::ImageLayout::ePresentSrcKHR
-	);
-	attachmentDescriptions[1] = vk::AttachmentDescription(
-		vk::AttachmentDescriptionFlags(),
-		depthImage.GetFormat(),
-		vk::SampleCountFlagBits::e1,
-		vk::AttachmentLoadOp::eClear,
-		vk::AttachmentStoreOp::eDontCare,
-		vk::AttachmentLoadOp::eDontCare,
-		vk::AttachmentStoreOp::eDontCare,
-		vk::ImageLayout::eUndefined,
-		vk::ImageLayout::eDepthStencilAttachmentOptimal
-	);
-
-	vk::AttachmentReference colorReference(0, vk::ImageLayout::eColorAttachmentOptimal);
-	vk::AttachmentReference depthReference(1, vk::ImageLayout::eDepthStencilAttachmentOptimal);
-
-	vk::SubpassDescription subpass(
-		vk::SubpassDescriptionFlags(),
-		vk::PipelineBindPoint::eGraphics,
-		{},
-		colorReference,
-		{},
-		&depthReference
-	);
-
-	vk::RenderPass renderPass = base->GetDevice().createRenderPass(
-		vk::RenderPassCreateInfo(
-			vk::RenderPassCreateFlags(),
-			attachmentDescriptions,
-			subpass
-		)
-	);
-
-
+	RenderPass renderPass(base->GetFormat(), depthImage.GetFormat());
+	renderPass.Create(base->GetDevice());
+	
 	// shader modules stuff
 	vk::ShaderModule cubeVertexShaderModule = loadShaderModule("../shaders/cube.vert.spv", base->GetDevice());
 	vk::ShaderModule cubeFragmentShaderModule = loadShaderModule("../shaders/cube.frag.spv", base->GetDevice());
@@ -213,7 +170,7 @@ int main(int argc, char* argv[]) {
 
 	vk::FramebufferCreateInfo frameBufferCreateInfo(
 		vk::FramebufferCreateFlags(),
-		renderPass,
+		renderPass.GetRenderPass(),
 		attachments,
 		swapchain.GetExtent().width,
 		swapchain.GetExtent().height,
@@ -366,7 +323,7 @@ int main(int argc, char* argv[]) {
 		&pipelineColorBlendStateCreateInfo,
 		&pipelineDynamicStateCreateInfo,
 		descriptorSet.GetPipelineLayout(),
-		renderPass
+		renderPass.GetRenderPass()
 	);
 
 	vk::Result result;
@@ -423,7 +380,7 @@ int main(int argc, char* argv[]) {
 		commandBuffer.begin(vk::CommandBufferBeginInfo(vk::CommandBufferUsageFlags()));
 
 		vk::RenderPassBeginInfo renderPassBeginInfo(
-			renderPass,
+			renderPass.GetRenderPass(),
 			framebuffers[currentBuffer.value],
 			vk::Rect2D(vk::Offset2D(0, 0), swapchain.GetExtent()),
 			clearValues
@@ -504,7 +461,7 @@ int main(int argc, char* argv[]) {
 	base->GetDevice().destroyShaderModule(cubeFragmentShaderModule);
 	base->GetDevice().destroyShaderModule(cubeVertexShaderModule);
 	
-	base->GetDevice().destroyRenderPass(renderPass);
+	base->GetDevice().destroyRenderPass(renderPass.GetRenderPass());
 
 	base->GetDevice().freeDescriptorSets(descriptorSet.GetDescriptorPool(), descriptorSet.GetDescriptorSet());
 	base->GetDevice().destroyDescriptorPool(descriptorSet.GetDescriptorPool());
