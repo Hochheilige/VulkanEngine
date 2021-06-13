@@ -4,6 +4,7 @@
 #include <Swapchain.hpp>
 #include <Image.hpp>
 #include <Buffer.hpp>
+#include <DescriptorSet.hpp>
 
 class Engine {
 public:

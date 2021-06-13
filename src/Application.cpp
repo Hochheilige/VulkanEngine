@@ -22,103 +22,50 @@ struct VertexPC
 	float r, g, b, a;   // Color
 };
 
-struct VertexPT
-{
-	float x, y, z, w;   // Position data
-	float u, v;         // texture u,v
-};
-
-
 static const VertexPC coloredCubeData[] =
 {
 	// red face
 	{ -1.0f, -1.0f,  1.0f, 1.0f,    1.0f, 0.0f, 0.0f, 1.0f },
-	{ -1.0f,  1.0f,  1.0f, 1.0f,    1.0f, 0.0f, 0.0f, 1.0f },
-	{  1.0f, -1.0f,  1.0f, 1.0f,    1.0f, 0.0f, 0.0f, 1.0f },
-	{  1.0f, -1.0f,  1.0f, 1.0f,    1.0f, 0.0f, 0.0f, 1.0f },
-	{ -1.0f,  1.0f,  1.0f, 1.0f,    1.0f, 0.0f, 0.0f, 1.0f },
+	{ -1.0f,  1.0f,  1.0f, 1.0f,    0.0f, 1.0f, 0.0f, 1.0f },
+	{  1.0f, -1.0f,  1.0f, 1.0f,    0.0f, 0.0f, 1.0f, 1.0f },
+	{  1.0f, -1.0f,  1.0f, 1.0f,    0.0f, 0.0f, 1.0f, 1.0f },
+	{ -1.0f,  1.0f,  1.0f, 1.0f,    0.0f, 1.0f, 0.0f, 1.0f },
 	{  1.0f,  1.0f,  1.0f, 1.0f,    1.0f, 0.0f, 0.0f, 1.0f },
 	// green face
-	{ -1.0f, -1.0f, -1.0f, 1.0f,    0.0f, 1.0f, 0.0f, 1.0f },
+	{ -1.0f, -1.0f, -1.0f, 1.0f,    1.0f, 0.0f, 0.0f, 1.0f },
 	{  1.0f, -1.0f, -1.0f, 1.0f,    0.0f, 1.0f, 0.0f, 1.0f },
-	{ -1.0f,  1.0f, -1.0f, 1.0f,    0.0f, 1.0f, 0.0f, 1.0f },
-	{ -1.0f,  1.0f, -1.0f, 1.0f,    0.0f, 1.0f, 0.0f, 1.0f },
+	{ -1.0f,  1.0f, -1.0f, 1.0f,    0.0f, 0.0f, 1.0f, 1.0f },
+	{ -1.0f,  1.0f, -1.0f, 1.0f,    0.0f, 0.0f, 1.0f, 1.0f },
 	{  1.0f, -1.0f, -1.0f, 1.0f,    0.0f, 1.0f, 0.0f, 1.0f },
-	{  1.0f,  1.0f, -1.0f, 1.0f,    0.0f, 1.0f, 0.0f, 1.0f },
+	{  1.0f,  1.0f, -1.0f, 1.0f,    1.0f, 0.0f, 0.0f, 1.0f },
 	// blue face
-	{ -1.0f,  1.0f,  1.0f, 1.0f,    0.0f, 0.0f, 1.0f, 1.0f },
-	{ -1.0f, -1.0f,  1.0f, 1.0f,    0.0f, 0.0f, 1.0f, 1.0f },
+	{ -1.0f,  1.0f,  1.0f, 1.0f,    1.0f, 0.0f, 0.0f, 1.0f },
+	{ -1.0f, -1.0f,  1.0f, 1.0f,    0.0f, 1.0f, 0.0f, 1.0f },
 	{ -1.0f,  1.0f, -1.0f, 1.0f,    0.0f, 0.0f, 1.0f, 1.0f },
 	{ -1.0f,  1.0f, -1.0f, 1.0f,    0.0f, 0.0f, 1.0f, 1.0f },
-	{ -1.0f, -1.0f,  1.0f, 1.0f,    0.0f, 0.0f, 1.0f, 1.0f },
-	{ -1.0f, -1.0f, -1.0f, 1.0f,    0.0f, 0.0f, 1.0f, 1.0f },
+	{ -1.0f, -1.0f,  1.0f, 1.0f,    0.0f, 1.0f, 0.0f, 1.0f },
+	{ -1.0f, -1.0f, -1.0f, 1.0f,    1.0f, 0.0f, 0.0f, 1.0f },
 	// yellow face
-	{  1.0f,  1.0f,  1.0f, 1.0f,    1.0f, 1.0f, 0.0f, 1.0f },
-	{  1.0f,  1.0f, -1.0f, 1.0f,    1.0f, 1.0f, 0.0f, 1.0f },
-	{  1.0f, -1.0f,  1.0f, 1.0f,    1.0f, 1.0f, 0.0f, 1.0f },
-	{  1.0f, -1.0f,  1.0f, 1.0f,    1.0f, 1.0f, 0.0f, 1.0f },
-	{  1.0f,  1.0f, -1.0f, 1.0f,    1.0f, 1.0f, 0.0f, 1.0f },
-	{  1.0f, -1.0f, -1.0f, 1.0f,    1.0f, 1.0f, 0.0f, 1.0f },
+	{  1.0f,  1.0f,  1.0f, 1.0f,    1.0f, 0.0f, 0.0f, 1.0f },
+	{  1.0f,  1.0f, -1.0f, 1.0f,    0.0f, 1.0f, 0.0f, 1.0f },
+	{  1.0f, -1.0f,  1.0f, 1.0f,    0.0f, 0.0f, 1.0f, 1.0f },
+	{  1.0f, -1.0f,  1.0f, 1.0f,    0.0f, 0.0f, 1.0f, 1.0f },
+	{  1.0f,  1.0f, -1.0f, 1.0f,    0.0f, 1.0f, 0.0f, 1.0f },
+	{  1.0f, -1.0f, -1.0f, 1.0f,    1.0f, 0.0f, 0.0f, 1.0f },
 	// magenta face
-	{  1.0f,  1.0f,  1.0f, 1.0f,    1.0f, 0.0f, 1.0f, 1.0f },
-	{ -1.0f,  1.0f,  1.0f, 1.0f,    1.0f, 0.0f, 1.0f, 1.0f },
-	{  1.0f,  1.0f, -1.0f, 1.0f,    1.0f, 0.0f, 1.0f, 1.0f },
-	{  1.0f,  1.0f, -1.0f, 1.0f,    1.0f, 0.0f, 1.0f, 1.0f },
-	{ -1.0f,  1.0f,  1.0f, 1.0f,    1.0f, 0.0f, 1.0f, 1.0f },
-	{ -1.0f,  1.0f, -1.0f, 1.0f,    1.0f, 0.0f, 1.0f, 1.0f },
+	{  1.0f,  1.0f,  1.0f, 1.0f,    1.0f, 0.0f, 0.0f, 1.0f },
+	{ -1.0f,  1.0f,  1.0f, 1.0f,    0.0f, 1.0f, 0.0f, 1.0f },
+	{  1.0f,  1.0f, -1.0f, 1.0f,    0.0f, 0.0f, 1.0f, 1.0f },
+	{  1.0f,  1.0f, -1.0f, 1.0f,    0.0f, 0.0f, 1.0f, 1.0f },
+	{ -1.0f,  1.0f,  1.0f, 1.0f,    0.0f, 1.0f, 0.0f, 1.0f },
+	{ -1.0f,  1.0f, -1.0f, 1.0f,    1.0f, 0.0f, 0.0f, 1.0f },
 	// cyan face
-	{  1.0f, -1.0f,  1.0f, 1.0f,    0.0f, 1.0f, 1.0f, 1.0f },
-	{  1.0f, -1.0f, -1.0f, 1.0f,    0.0f, 1.0f, 1.0f, 1.0f },
-	{ -1.0f, -1.0f,  1.0f, 1.0f,    0.0f, 1.0f, 1.0f, 1.0f },
-	{ -1.0f, -1.0f,  1.0f, 1.0f,    0.0f, 1.0f, 1.0f, 1.0f },
-	{  1.0f, -1.0f, -1.0f, 1.0f,    0.0f, 1.0f, 1.0f, 1.0f },
-	{ -1.0f, -1.0f, -1.0f, 1.0f,    0.0f, 1.0f, 1.0f, 1.0f },
-};
-
-static const VertexPT texturedCubeData[] =
-{
-	// left face
-	{ -1.0f, -1.0f, -1.0f, 1.0f,    1.0f, 0.0f },
-	{ -1.0f,  1.0f,  1.0f, 1.0f,    0.0f, 1.0f },
-	{ -1.0f, -1.0f,  1.0f, 1.0f,    0.0f, 0.0f },
-	{ -1.0f,  1.0f,  1.0f, 1.0f,    0.0f, 1.0f },
-	{ -1.0f, -1.0f, -1.0f, 1.0f,    1.0f, 0.0f },
-	{ -1.0f,  1.0f, -1.0f, 1.0f,    1.0f, 1.0f },
-	// front face
-	{ -1.0f, -1.0f, -1.0f, 1.0f,    0.0f, 0.0f },
-	{  1.0f, -1.0f, -1.0f, 1.0f,    1.0f, 0.0f },
-	{  1.0f,  1.0f, -1.0f, 1.0f,    1.0f, 1.0f },
-	{ -1.0f, -1.0f, -1.0f, 1.0f,    0.0f, 0.0f },
-	{  1.0f,  1.0f, -1.0f, 1.0f,    1.0f, 1.0f },
-	{ -1.0f,  1.0f, -1.0f, 1.0f,    0.0f, 1.0f },
-	// top face
-	{ -1.0f, -1.0f, -1.0f, 1.0f,    0.0f, 1.0f },
-	{  1.0f, -1.0f,  1.0f, 1.0f,    1.0f, 0.0f },
-	{  1.0f, -1.0f, -1.0f, 1.0f,    1.0f, 1.0f },
-	{ -1.0f, -1.0f, -1.0f, 1.0f,    0.0f, 1.0f },
-	{ -1.0f, -1.0f,  1.0f, 1.0f,    0.0f, 0.0f },
-	{  1.0f, -1.0f, -1.0f, 1.0f,    1.0f, 0.0f },
-	// bottom face
-	{ -1.0f,  1.0f, -1.0f, 1.0f,    0.0f, 0.0f },
-	{  1.0f,  1.0f,  1.0f, 1.0f,    1.0f, 1.0f },
-	{ -1.0f,  1.0f,  1.0f, 1.0f,    0.0f, 1.0f },
-	{ -1.0f,  1.0f, -1.0f, 1.0f,    0.0f, 0.0f },
-	{  1.0f,  1.0f, -1.0f, 1.0f,    1.0f, 0.0f },
-	{  1.0f,  1.0f,  1.0f, 1.0f,    1.0f, 1.0f },
-	// right face
-	{  1.0f,  1.0f, -1.0f, 1.0f,    0.0f, 1.0f },
-	{  1.0f, -1.0f,  1.0f, 1.0f,    1.0f, 0.0f },
-	{  1.0f,  1.0f,  1.0f, 1.0f,    1.0f, 1.0f },
-	{  1.0f, -1.0f,  1.0f, 1.0f,    1.0f, 0.0f },
-	{  1.0f,  1.0f, -1.0f, 1.0f,    0.0f, 1.0f },
-	{  1.0f, -1.0f, -1.0f, 1.0f,    0.0f, 0.0f },
-	// back face
-	{ -1.0f,  1.0f,  1.0f, 1.0f,    1.0f, 1.0f },
-	{  1.0f,  1.0f,  1.0f, 1.0f,    0.0f, 1.0f },
-	{ -1.0f, -1.0f,  1.0f, 1.0f,    1.0f, 0.0f },
-	{ -1.0f, -1.0f,  1.0f, 1.0f,    1.0f, 0.0f },
-	{  1.0f,  1.0f,  1.0f, 1.0f,    0.0f, 1.0f },
-	{  1.0f, -1.0f,  1.0f, 1.0f,    0.0f, 0.0f },
+	{  1.0f, -1.0f,  1.0f, 1.0f,    1.0f, 0.0f, 0.0f, 1.0f },
+	{  1.0f, -1.0f, -1.0f, 1.0f,    0.0f, 1.0f, 0.0f, 1.0f },
+	{ -1.0f, -1.0f,  1.0f, 1.0f,    0.0f, 0.0f, 1.0f, 1.0f },
+	{ -1.0f, -1.0f,  1.0f, 1.0f,    0.0f, 0.0f, 1.0f, 1.0f },
+	{  1.0f, -1.0f, -1.0f, 1.0f,    0.0f, 1.0f, 0.0f, 1.0f },
+	{ -1.0f, -1.0f, -1.0f, 1.0f,    1.0f, 0.0f, 0.0f, 1.0f },
 };
 
 static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
@@ -200,53 +147,15 @@ int main(int argc, char* argv[]) {
 	vertexBuffer.Init(base->GetDevice());
 	vertexBuffer.CopyBuffer(base->GetDevice(), coloredCubeData);
 
-	// TODO: make sure what is descriptor set need for
-	// Descriptor set stuff and pipelineLayout
-	vk::DescriptorSetLayoutBinding descriptorSetLayoutBinding(
-		/* bindings ?? */ 0,
-		vk::DescriptorType::eUniformBuffer,
-		/* descriptor count */ 1,
-		vk::ShaderStageFlagBits::eVertex
+	DescriptorSet descriptorSet(
+		0, vk::DescriptorType::eUniformBuffer,
+		1, vk::ShaderStageFlagBits::eVertex
 	);
 
-	vk::DescriptorSetLayout descriptorSetLayout = base->GetDevice().createDescriptorSetLayout(
-		vk::DescriptorSetLayoutCreateInfo(vk::DescriptorSetLayoutCreateFlags(), descriptorSetLayoutBinding)
-	);
-	
-	vk::PipelineLayout pipelineLayout = base->GetDevice().createPipelineLayout(
-		vk::PipelineLayoutCreateInfo(vk::PipelineLayoutCreateFlags(), descriptorSetLayout)
-	);
-
-	// Descriptor pool loool
-	vk::DescriptorPoolSize poolSize(vk::DescriptorType::eUniformBuffer, 1);
-	vk::DescriptorPool descriptorPool = base->GetDevice().createDescriptorPool(
-		vk::DescriptorPoolCreateInfo(
-			vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet,
-			/* maxSets */1, 
-			poolSize
-		)
-	);
-
-	// allocate a desriptor set
-	vk::DescriptorSetAllocateInfo descriptorSetAllocateInfo(descriptorPool, descriptorSetLayout);
-	vk::DescriptorSet descriptorSet = base->GetDevice().allocateDescriptorSets(descriptorSetAllocateInfo).front();
-
-	// descriptor buffer (what a....)
-	vk::DescriptorBufferInfo descriptorBufferInfo(
-		uniformBuffer.GetBuffer(),
-		/* offset */ 0,
-		/* range  */ sizeof(glm::mat4x4)
-	);
-
-	vk::WriteDescriptorSet writeDescriptorSet(
-		descriptorSet,
-		0,
-		0,
-		vk::DescriptorType::eUniformBuffer,
-		{},
-		descriptorBufferInfo
-	);
-	base->GetDevice().updateDescriptorSets(writeDescriptorSet, nullptr);
+	descriptorSet.CreateDescriptorSetAndPipelineLayouts(base->GetDevice());
+	descriptorSet.CreateDescriptorPool(base->GetDevice(), vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet, 1);
+	descriptorSet.CreateDescriptorSet(base->GetDevice());
+	descriptorSet.UpdateDescriptorSet<glm::mat4x4>(base->GetDevice(), uniformBuffer.GetBuffer());
 
 	// TODO: read about attachment description
 	std::array<vk::AttachmentDescription, 2> attachmentDescriptions;
@@ -456,7 +365,7 @@ int main(int argc, char* argv[]) {
 		&pipelineDepthStencilStateCreateInfo,
 		&pipelineColorBlendStateCreateInfo,
 		&pipelineDynamicStateCreateInfo,
-		pipelineLayout,
+		descriptorSet.GetPipelineLayout(),
 		renderPass
 	);
 
@@ -476,19 +385,6 @@ int main(int argc, char* argv[]) {
 		glm::vec3(1.5f,  0.2f, 1.5f),
 		glm::vec3(-1.3f,  1.0f, 1.5f),
 	};
-
-	view = glm::lookAt(
-		glm::vec3(-5.0f, 3.0f, -10.0f),
-		glm::vec3(0.0f, 0.0f, 0.0f),
-		glm::vec3(0.0f, -1.0f, 0.0f)
-	);
-	projection = glm::perspective(glm::radians(45.0f), 1.0f, 0.1f, 100.0f);
-	//clip = glm::mat4x4(
-	//	1.0f, 0.0f, 0.0f, 0.0f,
-	//	0.0f, -1.0f, 0.0f, 0.0f,
-	//	0.0f, 0.0f, 0.5f, 0.0f,
-	//	0.0f, 0.0f, 0.5f, 1.0f
-	//);
 
 	uniformBuffer.MapBuffer(base->GetDevice());
 
@@ -537,7 +433,7 @@ int main(int argc, char* argv[]) {
 
 		commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline);
 		// ???
-		commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipelineLayout, 0, descriptorSet, nullptr);
+		commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, descriptorSet.GetPipelineLayout(), 0, descriptorSet.GetDescriptorSet(), nullptr);
 
 		commandBuffer.bindVertexBuffers(0, vertexBuffer.GetBuffer(), { 0 });
 
@@ -553,6 +449,7 @@ int main(int argc, char* argv[]) {
 		);
 
 		commandBuffer.setScissor(0, vk::Rect2D(vk::Offset2D(0, 0), swapchain.GetExtent()));
+
 		model = glm::mat4(1.0f);
 		model = glm::translate(model, cubePositions[0]);
 		model = glm::scale(model, glm::vec3(0.2, 0.2, 0.2));
@@ -561,8 +458,8 @@ int main(int argc, char* argv[]) {
 		
 		++frameNumber;
 
-		//memcpy((void*)uniformBuffer.GetData(), &mvpc, sizeof(mvpc));
 		uniformBuffer.MemoryCopy(mvpc);
+
 		commandBuffer.draw(36, 1, 0, 0);
 		
 
@@ -609,11 +506,11 @@ int main(int argc, char* argv[]) {
 	
 	base->GetDevice().destroyRenderPass(renderPass);
 
-	base->GetDevice().freeDescriptorSets(descriptorPool, descriptorSet);
-	base->GetDevice().destroyDescriptorPool(descriptorPool);
+	base->GetDevice().freeDescriptorSets(descriptorSet.GetDescriptorPool(), descriptorSet.GetDescriptorSet());
+	base->GetDevice().destroyDescriptorPool(descriptorSet.GetDescriptorPool());
 
-	base->GetDevice().destroyPipelineLayout(pipelineLayout);
-	base->GetDevice().destroyDescriptorSetLayout(descriptorSetLayout);
+	base->GetDevice().destroyPipelineLayout(descriptorSet.GetPipelineLayout());
+	base->GetDevice().destroyDescriptorSetLayout(descriptorSet.GetDescriptorSetLayout());
 
 	base->GetDevice().freeMemory(uniformBuffer.GetDeviceMemory());
 	base->GetDevice().destroyBuffer(uniformBuffer.GetBuffer());

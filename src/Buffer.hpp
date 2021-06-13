@@ -5,6 +5,8 @@
 #include <Resource.hpp>
 #include <VulkanBase.hpp>
 
+// Можно сделать шаблонным не весь класс а только некоторые функции
+
 template <class Object>
 class Buffer : public Resource {
 public:
