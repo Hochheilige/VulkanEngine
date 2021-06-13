@@ -184,71 +184,7 @@ int main(int argc, char* argv[]) {
 	std::unique_ptr<VulkanBase> base = std::make_unique<VulkanBase>();
 	base->init(rendererWindow->GetWindow());
 
-	// TODO: read about Extent2D
-	vk::Extent2D swapchainExtent = base->GetSurfaceCapabilities().currentExtent;
-
-	// TODO: clarify present modes
-	vk::PresentModeKHR swapchainPresentMode = vk::PresentModeKHR::eFifo;
-
-	// TODO: what is it?
-	vk::SurfaceTransformFlagBitsKHR preTransform = (base->GetSurfaceCapabilities().supportedTransforms & vk::SurfaceTransformFlagBitsKHR::eIdentity)
-		? vk::SurfaceTransformFlagBitsKHR::eIdentity
-		: base->GetSurfaceCapabilities().currentTransform;
-
-	vk::CompositeAlphaFlagBitsKHR compositeAlpha = (base->GetSurfaceCapabilities().supportedCompositeAlpha & vk::CompositeAlphaFlagBitsKHR::ePreMultiplied)
-		? vk::CompositeAlphaFlagBitsKHR::ePreMultiplied
-		: (base->GetSurfaceCapabilities().supportedCompositeAlpha & vk::CompositeAlphaFlagBitsKHR::ePostMultiplied)
-		? vk::CompositeAlphaFlagBitsKHR::ePostMultiplied
-		: (base->GetSurfaceCapabilities().supportedCompositeAlpha & vk::CompositeAlphaFlagBitsKHR::eInherit)
-		? vk::CompositeAlphaFlagBitsKHR::eInherit
-		: vk::CompositeAlphaFlagBitsKHR::eOpaque;
-
-	// TODO: find more informations about parts of this struct
-	vk::SwapchainCreateInfoKHR swapchainInfo(
-		vk::SwapchainCreateFlagsKHR(),
-		base->GetSurface(),
-		base->GetSurfaceCapabilities().minImageCount,
-		base->GetFormat(),
-		vk::ColorSpaceKHR::eSrgbNonlinear,
-		swapchainExtent,
-		1,
-		vk::ImageUsageFlagBits::eColorAttachment,
-		vk::SharingMode::eExclusive,
-		{},
-		preTransform,
-		compositeAlpha,
-		swapchainPresentMode,
-		true,
-		nullptr
-	);
-	
-	vk::SwapchainKHR swapchain = base->GetDevice().createSwapchainKHR(swapchainInfo);
-
-	std::vector<vk::Image> swapchainImages = base->GetDevice().getSwapchainImagesKHR(swapchain);
-	std::vector<vk::ImageView> imageViews;
-	imageViews.reserve(swapchainImages.size());
-
-	// TODO: read about componentMapping and ImageSubresourceRange
-	vk::ComponentMapping componentMapping(
-		vk::ComponentSwizzle::eR,
-		vk::ComponentSwizzle::eG,
-		vk::ComponentSwizzle::eB,
-		vk::ComponentSwizzle::eA
-	);
-
-	vk::ImageSubresourceRange subResourceRange(vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1);
-
-	for (const auto& image : swapchainImages) {
-		vk::ImageViewCreateInfo imageViewCreateInfo(
-			vk::ImageViewCreateFlags(),
-			image,
-			vk::ImageViewType::e2D,
-			base->GetFormat(),
-			componentMapping,
-			subResourceRange
-		);
-		imageViews.push_back(base->GetDevice().createImageView(imageViewCreateInfo));
-	}
+	Swapchain swapchain(*base);
 
 	const vk::Format depthFormat = vk::Format::eD16Unorm;
 	vk::FormatProperties formatProperties = base->GetPhysicalDevice().getFormatProperties(depthFormat);
@@ -269,7 +205,7 @@ int main(int argc, char* argv[]) {
 		vk::ImageCreateFlags(),
 		vk::ImageType::e2D,
 		depthFormat,
-		vk::Extent3D(swapchainExtent, 1),
+		vk::Extent3D(swapchain.GetExtent(), 1),
 		1, 1,
 		vk::SampleCountFlagBits::e1,
 		tiling,
@@ -290,6 +226,14 @@ int main(int argc, char* argv[]) {
 
 	// TODO: what is component mapping and subresource range (2)
 	vk::ImageSubresourceRange depthSubResourceRange(vk::ImageAspectFlagBits::eDepth, 0, 1, 0, 1);
+
+	// TODO: read about componentMapping and ImageSubresourceRange
+	vk::ComponentMapping componentMapping(
+		vk::ComponentSwizzle::eR,
+		vk::ComponentSwizzle::eG,
+		vk::ComponentSwizzle::eB,
+		vk::ComponentSwizzle::eA
+	);
 
 	vk::ImageView depthView = base->GetDevice().createImageView(
 		vk::ImageViewCreateInfo(
@@ -443,14 +387,14 @@ int main(int argc, char* argv[]) {
 		vk::FramebufferCreateFlags(),
 		renderPass,
 		attachments,
-		swapchainExtent.width,
-		swapchainExtent.height,
+		swapchain.GetExtent().width,
+		swapchain.GetExtent().height,
 		1
 	);
 
 	std::vector<vk::Framebuffer> framebuffers;
-	framebuffers.reserve(imageViews.size());
-	for (const auto& imageView : imageViews) {
+	framebuffers.reserve(swapchain.GetImageViews().size());
+	for (const auto& imageView : swapchain.GetImageViews()) {
 		attachments[0] = imageView;
 		framebuffers.push_back(base->GetDevice().createFramebuffer(frameBufferCreateInfo));
 	}
@@ -633,7 +577,7 @@ int main(int argc, char* argv[]) {
 		vk::Semaphore imageAcquiredSemaphore = base->GetDevice().createSemaphore(vk::SemaphoreCreateInfo(vk::SemaphoreCreateFlags()));
 
 		vk::ResultValue<uint32_t> currentBuffer = base->GetDevice().acquireNextImageKHR(
-			swapchain,
+			swapchain.GetSwapchain(),
 			1000000000,
 			imageAcquiredSemaphore,
 			nullptr
@@ -677,7 +621,7 @@ int main(int argc, char* argv[]) {
 		vk::RenderPassBeginInfo renderPassBeginInfo(
 			renderPass,
 			framebuffers[currentBuffer.value],
-			vk::Rect2D(vk::Offset2D(0, 0), swapchainExtent),
+			vk::Rect2D(vk::Offset2D(0, 0), swapchain.GetExtent()),
 			clearValues
 		);
 
@@ -693,14 +637,14 @@ int main(int argc, char* argv[]) {
 			0,
 			vk::Viewport(
 				0.0f, 0.0f,
-				static_cast<float>(swapchainExtent.width),
-				static_cast<float>(swapchainExtent.height),
+				static_cast<float>(swapchain.GetExtent().width),
+				static_cast<float>(swapchain.GetExtent().height),
 				0.0f,
 				1.0f
 			)
 		);
 
-		commandBuffer.setScissor(0, vk::Rect2D(vk::Offset2D(0, 0), swapchainExtent));
+		commandBuffer.setScissor(0, vk::Rect2D(vk::Offset2D(0, 0), swapchain.GetExtent()));
 
 		commandBuffer.draw(12 * 3, 1, 0, 0);
 
@@ -722,7 +666,7 @@ int main(int argc, char* argv[]) {
 
 		while (vk::Result::eTimeout == base->GetDevice().waitForFences(drawFence, VK_TRUE, 1000000000));
 
-		vk::Result drawResult = base->GetQueues().graphicsQueue.presentKHR(vk::PresentInfoKHR({}, swapchain, currentBuffer.value));
+		vk::Result drawResult = base->GetQueues().graphicsQueue.presentKHR(vk::PresentInfoKHR({}, swapchain.GetSwapchain(), currentBuffer.value));
 
 		base->GetDevice().waitIdle();
 
@@ -758,15 +702,10 @@ int main(int argc, char* argv[]) {
 	base->GetDevice().destroyImageView(depthView);
 	base->GetDevice().freeMemory(depthMemory);
 	base->GetDevice().destroyImage(depthImage);
-	for (auto& imageView : imageViews) {
+	for (auto& imageView : swapchain.GetImageViews()) {
 		base->GetDevice().destroyImageView(imageView);
 	}
-	base->GetDevice().destroySwapchainKHR(swapchain);
-	//base->instance.destroySurfaceKHR(base->surface);
-	//base->device.destroy();
-	////base->instance.destroyDebugUtilsMessengerEXT(base->debugMessenger, nullptr, base->dispatcher);
-	//base->instance.destroy();
-	////SDL_DestroyWindow(window);
+	base->GetDevice().destroySwapchainKHR(swapchain.GetSwapchain());
 
 	return 0;
 }

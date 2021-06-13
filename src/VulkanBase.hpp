@@ -35,13 +35,13 @@ public:
 		deviceExtensions.push_back(extension);
 	}
 
-	const vk::Instance& GetInstance() { return instance; }
-	const vk::PhysicalDevice& GetPhysicalDevice() { return gpu; }
-	const vk::Device& GetDevice() { return device; }
-	const vk::SurfaceKHR& GetSurface() { return surface; }
-	const Queues& GetQueues() { return queues; }
-	const vk::Format& GetFormat() { return format; }
-	const vk::SurfaceCapabilitiesKHR GetSurfaceCapabilities() { return surfaceCapabilities; }
+	const vk::Instance& GetInstance() const { return instance; }
+	const vk::PhysicalDevice& GetPhysicalDevice() const { return gpu; }
+	const vk::Device& GetDevice() const { return device; }
+	const vk::SurfaceKHR& GetSurface() const { return surface; }
+	const Queues& GetQueues() const { return queues; }
+	const vk::Format& GetFormat() const { return format; }
+	const vk::SurfaceCapabilitiesKHR GetSurfaceCapabilities() const { return surfaceCapabilities; }
 
 
 private:

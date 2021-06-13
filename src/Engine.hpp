@@ -1,7 +1,7 @@
 #pragma once
 
 #include <Window.hpp>
-#include <VulkanBase.hpp>
+#include <Swapchain.hpp>
 
 class Engine {
 public:
