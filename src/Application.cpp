@@ -165,25 +165,13 @@ int main(int argc, char* argv[]) {
 	vk::ShaderModule cubeFragmentShaderModule = loadShaderModule("../shaders/cube.frag.spv", base->GetDevice());
 
 	// frame buffer stuff
-	std::array<vk::ImageView, 2> attachments;
-	attachments[1] = depthImage.GetImageView();
-
-	vk::FramebufferCreateInfo frameBufferCreateInfo(
-		vk::FramebufferCreateFlags(),
+	Framebuffer framebuffer(
 		renderPass.GetRenderPass(),
-		attachments,
-		swapchain.GetExtent().width,
-		swapchain.GetExtent().height,
-		1
+		swapchain.GetExtent(),
+		depthImage.GetImageView()
 	);
-
-	std::vector<vk::Framebuffer> framebuffers;
-	framebuffers.reserve(swapchain.GetImageViews().size());
-	for (const auto& imageView : swapchain.GetImageViews()) {
-		attachments[0] = imageView;
-		framebuffers.push_back(base->GetDevice().createFramebuffer(frameBufferCreateInfo));
-	}
-
+	framebuffer.Create(base->GetDevice(), swapchain);
+	
 	// command pool and command buffer
 	vk::CommandPool commandPool = base->GetDevice().createCommandPool(
 		vk::CommandPoolCreateInfo(
@@ -362,7 +350,7 @@ int main(int argc, char* argv[]) {
 			nullptr
 		);
 		assert(currentBuffer.result == vk::Result::eSuccess);
-		assert(currentBuffer.value < framebuffers.size());
+		assert(currentBuffer.value < framebuffer.GetFramebuffers().size());
 
 		std::array<vk::ClearValue, 2> clearValues;
 		// random colors to window color
@@ -381,7 +369,7 @@ int main(int argc, char* argv[]) {
 
 		vk::RenderPassBeginInfo renderPassBeginInfo(
 			renderPass.GetRenderPass(),
-			framebuffers[currentBuffer.value],
+			framebuffer.GetFramebuffers()[currentBuffer.value],
 			vk::Rect2D(vk::Offset2D(0, 0), swapchain.GetExtent()),
 			clearValues
 		);
@@ -454,7 +442,7 @@ int main(int argc, char* argv[]) {
 	base->GetDevice().freeCommandBuffers(commandPool, commandBuffer);
 	base->GetDevice().destroyCommandPool(commandPool);
 
-	for (const auto& framebuffer : framebuffers) {
+	for (const auto& framebuffer : framebuffer.GetFramebuffers()) {
 		base->GetDevice().destroyFramebuffer(framebuffer);
 	}
 
