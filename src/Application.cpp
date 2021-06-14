@@ -12,6 +12,7 @@
 #include <vector>
 #include <algorithm>
 #include <memory>
+#include <chrono>
 
 #include <Engine.hpp>
 
@@ -68,14 +69,6 @@ static const VertexPC coloredCubeData[] =
 	{ -1.0f, -1.0f, -1.0f, 1.0f,    1.0f, 0.0f, 0.0f, 1.0f },
 };
 
-static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
-	VkDebugUtilsMessageTypeFlagsEXT messageType,
-	const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
-	void* pUserData) {
-	printf("Validation layer: %s\n", pCallbackData->pMessage);
-	return VK_FALSE;
-}
-
 vk::ShaderModule loadShaderModule(const char* filePath, const vk::Device& device) {
 	std::ifstream file(filePath, std::ios::ate | std::ios::binary);
 	if (!file.is_open())
@@ -99,8 +92,6 @@ vk::ShaderModule loadShaderModule(const char* filePath, const vk::Device& device
 
 // copy-paste this functions from khronos repo
 
-
-
 void submitAndWait(vk::Device const& device, vk::Queue const& queue, vk::CommandBuffer const& commandBuffer) {
 	vk::Fence fence = device.createFence(vk::FenceCreateInfo());
 	queue.submit(vk::SubmitInfo(0, nullptr, nullptr, 1, &commandBuffer), fence);
@@ -112,6 +103,8 @@ void submitAndWait(vk::Device const& device, vk::Queue const& queue, vk::Command
 int main(int argc, char* argv[]) {
 
 	Window* rendererWindow = Window::CreateWindow("Vulkan Renderer", 1024, 768);
+	SDL_SetRelativeMouseMode(SDL_TRUE);
+	SDL_CaptureMouse(SDL_TRUE);
 	SDL_Event event;
 	
 	std::unique_ptr<VulkanBase> base = std::make_unique<VulkanBase>();
@@ -122,14 +115,26 @@ int main(int argc, char* argv[]) {
 	Image depthImage(base->GetPhysicalDevice(), vk::Format::eD16Unorm);
 	depthImage.Init(*base, vk::ImageAspectFlagBits::eDepth);
 
+	// Camera data
+	glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, 3.0f);
+	glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
+	glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
+
+	float deltaTime = 0.0f;
+	float lastFrame = 0.0f;
+	float currentFrame = 0.0f;
+	float cameraSpeed = 0.0f;
+
+	float yaw = -90.0f;
+	float pitch = 0.0f;
+	int lastX = swapchain.GetExtent().width / 2.0f;
+	int lastY = swapchain.GetExtent().height / 2.0f;
+	bool firstMouse = true;
+
 	// Uniform buffer data
 	glm::mat4x4 model = glm::mat4x4(1.0f);
-	glm::mat4x4 view = glm::lookAt(
-		glm::vec3(-5.0f, 3.0f, -10.0f),
-		glm::vec3(0.0f, 0.0f, 0.0f),
-		glm::vec3(0.0f, -1.0f, 0.0f)
-	);
-	glm::mat4x4 projection = glm::perspective(glm::radians(45.0f), 1.0f, 0.1f, 100.0f);
+	glm::mat4x4 view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
+	glm::mat4x4 projection = glm::perspective(glm::radians(45.0f), (float)swapchain.GetExtent().width / swapchain.GetExtent().height, 0.1f, 100.0f);
 	glm::mat4x4 clip = glm::mat4x4(
 		1.0f,  0.0f, 0.0f, 0.0f,
 		0.0f, -1.0f, 0.0f, 0.0f,
@@ -206,15 +211,7 @@ int main(int argc, char* argv[]) {
 
 	pipelineBuilder.vertexInputInfo.setVertexBindingDescriptions(vertexInputBindingDescription);
 	pipelineBuilder.vertexInputInfo.setVertexAttributeDescriptions(vertexInputAttributeDescriptions);
-
 	pipelineBuilder.inputAssembly = utils::inputAssemblyCreateInfo(vk::PrimitiveTopology::eTriangleList);
-	//pipelineBuilder.viewport.setX(0.0f);
-	//pipelineBuilder.viewport.setY(0.0f);
-	//pipelineBuilder.viewport.setWidth(swapchain.GetExtent().width);
-	//pipelineBuilder.viewport.setHeight(swapchain.GetExtent().height);
-	//pipelineBuilder.viewport.setMinDepth(0.0f);
-	//pipelineBuilder.viewport.setMaxDepth(1.0f);
-
 	pipelineBuilder.pipelineLayout = descriptorSet.GetPipelineLayout();
 	pipelineBuilder.rasterizer = utils::rasterizationStateCreateInfo(vk::PolygonMode::eFill);
 	pipelineBuilder.multisampling = utils::multisamplingStateCreateInfo();
@@ -226,37 +223,6 @@ int main(int argc, char* argv[]) {
 	};
 
 	vk::Pipeline graphicsPipeline = pipelineBuilder.Build(base->GetDevice(), renderPass.GetRenderPass());
-
-	//vk::PipelineColorBlendStateCreateInfo pipelineColorBlendStateCreateInfo(
-	//	vk::PipelineColorBlendStateCreateFlags(),  // flags
-	//	false,                                     // logicOpEnable
-	//	vk::LogicOp::eNoOp,                        // logicOp
-	//	pipelineColorBlendAttachmentState,         // attachments
-	//	{ { 1.0f, 1.0f, 1.0f, 1.0f } }             // blendConstants
-	//);
-
-	
-
-
-	//vk::GraphicsPipelineCreateInfo graphicsPipelineCreateInfo(
-	//	vk::PipelineCreateFlags(),
-	//	pipelineShaderStagesCreateInfos,
-	//	&pipelineVertexInputStateCreateInfo,
-	//	&pipelineInputAssemblyCreateInfo,
-	//	nullptr,
-	//	&pipelineViewportStateCreateInfo,
-	//	&pipelineRasterizationStateCreateInfo,
-	//	&pipelineMultisampleStateCreateInfo,
-	//	&pipelineDepthStencilStateCreateInfo,
-	//	&pipelineColorBlendStateCreateInfo,
-	//	&pipelineDynamicStateCreateInfo,
-	//	descriptorSet.GetPipelineLayout(),
-	//	renderPass.GetRenderPass()
-	//);
-
-	//vk::Result result;
-	//vk::Pipeline pipeline;
-	//std::tie(result, pipeline) = base->GetDevice().createGraphicsPipeline(nullptr, graphicsPipelineCreateInfo);
 
 	std::vector<glm::vec3> cubePositions = {
 		glm::vec3(0.0f,  0.0f,  0.0f),
@@ -274,10 +240,41 @@ int main(int argc, char* argv[]) {
 	uniformBuffer.MapBuffer(base->GetDevice());
 
 	uint32_t frameNumber = 0;
+	
 	while (!rendererWindow->isShouldClose) {
+
+		currentFrame = SDL_GetTicks() * 0.001f;
+		printf("Current: %f\n", currentFrame);
+		deltaTime = currentFrame - lastFrame;
+		printf("Delta: %f\n", deltaTime);
+		lastFrame = currentFrame;
+		printf("Last: %f\n", lastFrame);
+		
+
 		while (rendererWindow->PollEvents(&event)) {
-			if (event.type == SDL_QUIT || (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE))
+			cameraSpeed = 2.5f * deltaTime;
+			if (event.type == SDL_QUIT)
 				rendererWindow->isShouldClose = true;
+			else if (event.type == SDL_KEYDOWN) {
+				if (event.key.keysym.sym == SDLK_ESCAPE)
+					rendererWindow->isShouldClose = true;
+
+				if (event.key.keysym.sym == SDLK_w)
+					cameraPos += cameraSpeed * cameraFront;
+				if (event.key.keysym.sym == SDLK_s)
+					cameraPos -= cameraSpeed * cameraFront;
+				if (event.key.keysym.sym == SDLK_a)
+					cameraPos -= glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
+				if (event.key.keysym.sym == SDLK_d)
+					cameraPos += glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
+				
+			}
+
+			if (firstMouse) {
+				SDL_GetMouseState(&lastX, &lastY);
+				firstMouse = false;
+			}
+
 		}
 
 		// Not sure that this is part of vertex buffer stuff
@@ -301,9 +298,6 @@ int main(int argc, char* argv[]) {
 		float alphaFlash = abs(sin(rand() / 120.0f));
 		clearValues[0].color = vk::ClearColorValue(std::array<float, 4>({ {redFlash, greenFlash, blueFlash, alphaFlash} }));
 		clearValues[1].depthStencil = vk::ClearDepthStencilValue(1.0f, 0);
-
-		// Uniform buffer data
-
 
 		commandBuffer.begin(vk::CommandBufferBeginInfo(vk::CommandBufferUsageFlags()));
 
@@ -335,10 +329,11 @@ int main(int argc, char* argv[]) {
 
 		commandBuffer.setScissor(0, vk::Rect2D(vk::Offset2D(0, 0), swapchain.GetExtent()));
 
+		view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
 		model = glm::mat4(1.0f);
 		model = glm::translate(model, cubePositions[0]);
 		model = glm::scale(model, glm::vec3(0.2, 0.2, 0.2));
-		model = glm::rotate(model, glm::radians(frameNumber * 0.7f), glm::vec3(1.0f, 0.3f, 0.5f));
+		model = glm::rotate(model, glm::radians(frameNumber * 0.5f), glm::vec3(1.0f, 0.3f, 0.5f));
 		mvpc = clip * projection * view * model;
 		
 		++frameNumber;
