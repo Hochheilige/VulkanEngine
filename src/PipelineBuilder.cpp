@@ -4,16 +4,17 @@ vk::Pipeline PipelineBuilder::Build(const vk::Device& device, const vk::RenderPa
 	vk::PipelineViewportStateCreateInfo viewportState(
 		vk::PipelineViewportStateCreateFlags(),
 		1,
-		&viewport,
+		nullptr,
 		1,
-		&scissor
+		nullptr
 	);
 
 	vk::PipelineColorBlendStateCreateInfo colorBlending(
 		vk::PipelineColorBlendStateCreateFlags(),
-		VK_FALSE,
-		vk::LogicOp::eCopy,
-		colorBlendAttachment
+		false,
+		vk::LogicOp::eNoOp,
+		colorBlendAttachment,
+		{ { 1.0f, 1.0f, 1.0f, 1.0f } }
 	);
 
 	vk::GraphicsPipelineCreateInfo pipelineInfo(
@@ -21,13 +22,13 @@ vk::Pipeline PipelineBuilder::Build(const vk::Device& device, const vk::RenderPa
 		shaderStages,
 		&vertexInputInfo,
 		&inputAssembly,
-		{},
+		nullptr,
 		&viewportState,
 		&rasterizer,
 		&multisampling,
-		& depthStencil,
+		&depthStencil,
 		&colorBlending,
-		{},
+		&dynamicStateCreateInfo,
 		pipelineLayout,
 		renderPass
 	);

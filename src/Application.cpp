@@ -187,136 +187,76 @@ int main(int argc, char* argv[]) {
 	).front();
 
 	// pipeline 
-	std::array<vk::PipelineShaderStageCreateInfo, 2> pipelineShaderStagesCreateInfos = {
-		vk::PipelineShaderStageCreateInfo(
-			vk::PipelineShaderStageCreateFlags(),
-			vk::ShaderStageFlagBits::eVertex,
-			cubeVertexShaderModule,
-			"main"
-		),
-		vk::PipelineShaderStageCreateInfo(
-			vk::PipelineShaderStageCreateFlags(),
-			vk::ShaderStageFlagBits::eFragment,
-			cubeFragmentShaderModule,
-			"main"
-		)
-	};
-
+	PipelineBuilder pipelineBuilder;
+	pipelineBuilder.colorBlendAttachment = utils::colorBlendAttachmentState();
+	pipelineBuilder.depthStencil = utils::depthStencilCreateInfo(true, true, vk::CompareOp::eLessOrEqual);
+	pipelineBuilder.shaderStages.push_back(utils::pipelineShaderStageCreateInfo(vk::ShaderStageFlagBits::eVertex, cubeVertexShaderModule));
+	pipelineBuilder.shaderStages.push_back(utils::pipelineShaderStageCreateInfo(vk::ShaderStageFlagBits::eFragment, cubeFragmentShaderModule));
+	pipelineBuilder.vertexInputInfo = utils::vertexInputStateCreateInfo();
+	
 	vk::VertexInputBindingDescription vertexInputBindingDescription(
 		0,
 		sizeof(coloredCubeData[0])
 	);
 
 	std::array<vk::VertexInputAttributeDescription, 2> vertexInputAttributeDescriptions = {
-		vk::VertexInputAttributeDescription(0, 0, vk::Format::eR32G32B32A32Sfloat, 0),
-		vk::VertexInputAttributeDescription(1, 0, vk::Format::eR32G32B32A32Sfloat, 16)
+		vk::VertexInputAttributeDescription(1, 0, vk::Format::eR32G32B32A32Sfloat, 16),
+		vk::VertexInputAttributeDescription(0, 0, vk::Format::eR32G32B32A32Sfloat, 0)
 	};
 
-	vk::PipelineVertexInputStateCreateInfo pipelineVertexInputStateCreateInfo(
-		vk::PipelineVertexInputStateCreateFlags(),  // flags
-		vertexInputBindingDescription,              // vertexBindingDescriptions
-		vertexInputAttributeDescriptions            // vertexAttributeDescriptions
-	);
+	pipelineBuilder.vertexInputInfo.setVertexBindingDescriptions(vertexInputBindingDescription);
+	pipelineBuilder.vertexInputInfo.setVertexAttributeDescriptions(vertexInputAttributeDescriptions);
 
-	vk::PipelineInputAssemblyStateCreateInfo pipelineInputAssemblyCreateInfo(
-		vk::PipelineInputAssemblyStateCreateFlags(),
-		vk::PrimitiveTopology::eTriangleList
-	);
+	pipelineBuilder.inputAssembly = utils::inputAssemblyCreateInfo(vk::PrimitiveTopology::eTriangleList);
+	//pipelineBuilder.viewport.setX(0.0f);
+	//pipelineBuilder.viewport.setY(0.0f);
+	//pipelineBuilder.viewport.setWidth(swapchain.GetExtent().width);
+	//pipelineBuilder.viewport.setHeight(swapchain.GetExtent().height);
+	//pipelineBuilder.viewport.setMinDepth(0.0f);
+	//pipelineBuilder.viewport.setMaxDepth(1.0f);
 
-	vk::PipelineViewportStateCreateInfo pipelineViewportStateCreateInfo(
-		vk::PipelineViewportStateCreateFlags(),
-		1,
-		nullptr,
-		1,
-		nullptr
-	);
-
-	vk::PipelineRasterizationStateCreateInfo pipelineRasterizationStateCreateInfo(
-		vk::PipelineRasterizationStateCreateFlags(),  // flags
-		false,                                        // depthClampEnable
-		false,                                        // rasterizerDiscardEnable
-		vk::PolygonMode::eFill,                       // polygonMode
-		vk::CullModeFlagBits::eBack,                  // cullMode
-		vk::FrontFace::eClockwise,                    // frontFace
-		false,                                        // depthBiasEnable
-		0.0f,                                         // depthBiasConstantFactor
-		0.0f,                                         // depthBiasClamp
-		0.0f,                                         // depthBiasSlopeFactor
-		1.0f                                          // lineWidth
-	);
-
-	vk::PipelineMultisampleStateCreateInfo pipelineMultisampleStateCreateInfo(
-		vk::PipelineMultisampleStateCreateFlags(),
-		vk::SampleCountFlagBits::e1
-	);
-
-	vk::StencilOpState stencilOpState(
-		vk::StencilOp::eKeep,
-		vk::StencilOp::eKeep,
-		vk::StencilOp::eKeep,
-		vk::CompareOp::eAlways
-	);
-
-	vk::PipelineDepthStencilStateCreateInfo pipelineDepthStencilStateCreateInfo(
-		vk::PipelineDepthStencilStateCreateFlags(),  // flags
-		true,                                        // depthTestEnable
-		true,                                        // depthWriteEnable
-		vk::CompareOp::eLessOrEqual,                 // depthCompareOp
-		false,                                       // depthBoundTestEnable
-		false,                                       // stencilTestEnable
-		stencilOpState,                              // front
-		stencilOpState                               // back
-	);
-
-	vk::ColorComponentFlags colorComponentFlags(
-		vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG |
-		vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA
-	);
-
-	vk::PipelineColorBlendAttachmentState pipelineColorBlendAttachmentState(
-		false,                   // blendEnable
-		vk::BlendFactor::eZero,  // srcColorBlendFactor
-		vk::BlendFactor::eZero,  // dstColorBlendFactor
-		vk::BlendOp::eAdd,       // colorBlendOp
-		vk::BlendFactor::eZero,  // srcAlphaBlendFactor
-		vk::BlendFactor::eZero,  // dstAlphaBlendFactor
-		vk::BlendOp::eAdd,       // alphaBlendOp
-		colorComponentFlags      // colorWriteMask
-	);
-
-	vk::PipelineColorBlendStateCreateInfo pipelineColorBlendStateCreateInfo(
-		vk::PipelineColorBlendStateCreateFlags(),  // flags
-		false,                                     // logicOpEnable
-		vk::LogicOp::eNoOp,                        // logicOp
-		pipelineColorBlendAttachmentState,         // attachments
-		{ { 1.0f, 1.0f, 1.0f, 1.0f } }             // blendConstants
-	);
+	pipelineBuilder.pipelineLayout = descriptorSet.GetPipelineLayout();
+	pipelineBuilder.rasterizer = utils::rasterizationStateCreateInfo(vk::PolygonMode::eFill);
+	pipelineBuilder.multisampling = utils::multisamplingStateCreateInfo();
 
 	std::array<vk::DynamicState, 2> dynamicStates = { vk::DynamicState::eViewport, vk::DynamicState::eScissor };
-	vk::PipelineDynamicStateCreateInfo pipelineDynamicStateCreateInfo(
+	pipelineBuilder.dynamicStateCreateInfo = {
 		vk::PipelineDynamicStateCreateFlags(),
 		dynamicStates
-	);
+	};
 
-	vk::GraphicsPipelineCreateInfo graphicsPipelineCreateInfo(
-		vk::PipelineCreateFlags(),
-		pipelineShaderStagesCreateInfos,
-		&pipelineVertexInputStateCreateInfo,
-		&pipelineInputAssemblyCreateInfo,
-		nullptr,
-		&pipelineViewportStateCreateInfo,
-		&pipelineRasterizationStateCreateInfo,
-		&pipelineMultisampleStateCreateInfo,
-		&pipelineDepthStencilStateCreateInfo,
-		&pipelineColorBlendStateCreateInfo,
-		&pipelineDynamicStateCreateInfo,
-		descriptorSet.GetPipelineLayout(),
-		renderPass.GetRenderPass()
-	);
+	vk::Pipeline graphicsPipeline = pipelineBuilder.Build(base->GetDevice(), renderPass.GetRenderPass());
 
-	vk::Result result;
-	vk::Pipeline pipeline;
-	std::tie(result, pipeline) = base->GetDevice().createGraphicsPipeline(nullptr, graphicsPipelineCreateInfo);
+	//vk::PipelineColorBlendStateCreateInfo pipelineColorBlendStateCreateInfo(
+	//	vk::PipelineColorBlendStateCreateFlags(),  // flags
+	//	false,                                     // logicOpEnable
+	//	vk::LogicOp::eNoOp,                        // logicOp
+	//	pipelineColorBlendAttachmentState,         // attachments
+	//	{ { 1.0f, 1.0f, 1.0f, 1.0f } }             // blendConstants
+	//);
+
+	
+
+
+	//vk::GraphicsPipelineCreateInfo graphicsPipelineCreateInfo(
+	//	vk::PipelineCreateFlags(),
+	//	pipelineShaderStagesCreateInfos,
+	//	&pipelineVertexInputStateCreateInfo,
+	//	&pipelineInputAssemblyCreateInfo,
+	//	nullptr,
+	//	&pipelineViewportStateCreateInfo,
+	//	&pipelineRasterizationStateCreateInfo,
+	//	&pipelineMultisampleStateCreateInfo,
+	//	&pipelineDepthStencilStateCreateInfo,
+	//	&pipelineColorBlendStateCreateInfo,
+	//	&pipelineDynamicStateCreateInfo,
+	//	descriptorSet.GetPipelineLayout(),
+	//	renderPass.GetRenderPass()
+	//);
+
+	//vk::Result result;
+	//vk::Pipeline pipeline;
+	//std::tie(result, pipeline) = base->GetDevice().createGraphicsPipeline(nullptr, graphicsPipelineCreateInfo);
 
 	std::vector<glm::vec3> cubePositions = {
 		glm::vec3(0.0f,  0.0f,  0.0f),
@@ -376,7 +316,7 @@ int main(int argc, char* argv[]) {
 
 		commandBuffer.beginRenderPass(renderPassBeginInfo, vk::SubpassContents::eInline);
 
-		commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline);
+		commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, graphicsPipeline);
 		// ???
 		commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, descriptorSet.GetPipelineLayout(), 0, descriptorSet.GetDescriptorSet(), nullptr);
 
@@ -434,7 +374,7 @@ int main(int argc, char* argv[]) {
 		base->GetDevice().destroySemaphore(imageAcquiredSemaphore);
 	}
 	
-	base->GetDevice().destroyPipeline(pipeline);
+	base->GetDevice().destroyPipeline(graphicsPipeline);
 
 	base->GetDevice().freeMemory(vertexBuffer.GetDeviceMemory());
 	base->GetDevice().destroyBuffer(vertexBuffer.GetBuffer());
