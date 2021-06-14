@@ -7,7 +7,6 @@
 
 // Можно сделать шаблонным не весь класс а только некоторые функции
 
-template <class Object>
 class Buffer : public Resource {
 public:
 	Buffer(const vk::PhysicalDevice gpu, vk::BufferUsageFlagBits flags) 
@@ -15,6 +14,7 @@ public:
 	}
 	~Buffer() {}
 
+	template <class Object>
 	void Init(const vk::Device& device) {
 		buffer = device.createBuffer(
 			vk::BufferCreateInfo(
@@ -30,6 +30,7 @@ public:
 		deviceMemory = device.allocateMemory(vk::MemoryAllocateInfo(bufferMemoryRequiremenents.size, memoryTypeIndex));
 	}
 
+	template <class Object>
 	void CopyBuffer(const vk::Device& device, const Object& object) {
 		data = static_cast<uint8_t*>(device.mapMemory(deviceMemory, 0, bufferMemoryRequiremenents.size));
 		memcpy(data, &object, sizeof(object));
@@ -49,12 +50,9 @@ public:
 		device.bindBufferMemory(buffer, deviceMemory, 0);
 	}
 
+	template <class Object>
 	void MemoryCopy(const Object& object) {
 		memcpy(data, &object, sizeof(object));
-	}
-
-	void PushConstant() {
-
 	}
 
 	const vk::Buffer& GetBuffer() { return buffer; }

@@ -144,13 +144,13 @@ int main(int argc, char* argv[]) {
 	);
 	glm::mat4x4 mvpc = clip * projection * view * model;
 
-	Buffer<glm::mat4x4> uniformBuffer(base->GetPhysicalDevice(), vk::BufferUsageFlagBits::eUniformBuffer);
-	uniformBuffer.Init(base->GetDevice());
+	Buffer uniformBuffer(base->GetPhysicalDevice(), vk::BufferUsageFlagBits::eUniformBuffer);
+	uniformBuffer.Init<glm::mat4x4>(base->GetDevice());
 	uniformBuffer.BindBuffer(base->GetDevice());
 
 	// vertex buffer
-	Buffer<VertexPC[36]> vertexBuffer(base->GetPhysicalDevice(), vk::BufferUsageFlagBits::eVertexBuffer);
-	vertexBuffer.Init(base->GetDevice());
+	Buffer vertexBuffer(base->GetPhysicalDevice(), vk::BufferUsageFlagBits::eVertexBuffer);
+	vertexBuffer.Init<VertexPC[36]>(base->GetDevice());
 	vertexBuffer.CopyBuffer(base->GetDevice(), coloredCubeData);
 
 	DescriptorSet descriptorSet(
@@ -254,6 +254,7 @@ int main(int argc, char* argv[]) {
 
 		while (rendererWindow->PollEvents(&event)) {
 			cameraSpeed = 2.5f * deltaTime;
+			printf("speed: %f\n", cameraSpeed);
 			if (event.type == SDL_QUIT)
 				rendererWindow->isShouldClose = true;
 			else if (event.type == SDL_KEYDOWN) {
@@ -267,9 +268,8 @@ int main(int argc, char* argv[]) {
 				if (event.key.keysym.sym == SDLK_a)
 					cameraPos -= glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
 				if (event.key.keysym.sym == SDLK_d)
-					cameraPos += glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
-				
-			}
+					cameraPos += glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;	
+			} 
 
 			SDL_GetMouseState(&xpos, &ypos);
 			if (firstMouse) {
