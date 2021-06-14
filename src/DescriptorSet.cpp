@@ -29,12 +29,14 @@ void DescriptorSet::CreateDescriptorSetAndPipelineLayouts(const vk::Device& devi
 
 void DescriptorSet::CreateDescriptorPool(const vk::Device& device, vk::DescriptorPoolCreateFlagBits flags, uint32_t maxSets) {
 	// Descriptor pool loool
-	poolSize = { descriptorType, 1 };
+	poolSizes = {
+		{descriptorType, 10}
+	};
 	descriptorPool = device.createDescriptorPool(
 		vk::DescriptorPoolCreateInfo(
 			flags,
 			maxSets,
-			poolSize
+			poolSizes
 		)
 	);
 }

@@ -127,6 +127,7 @@ int main(int argc, char* argv[]) {
 
 	float yaw = -90.0f;
 	float pitch = 0.0f;
+	int xpos = 0, ypos = 0;
 	int lastX = swapchain.GetExtent().width / 2.0f;
 	int lastY = swapchain.GetExtent().height / 2.0f;
 	bool firstMouse = true;
@@ -158,7 +159,7 @@ int main(int argc, char* argv[]) {
 	);
 
 	descriptorSet.CreateDescriptorSetAndPipelineLayouts(base->GetDevice());
-	descriptorSet.CreateDescriptorPool(base->GetDevice(), vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet, 1);
+	descriptorSet.CreateDescriptorPool(base->GetDevice(), vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet, 10);
 	descriptorSet.CreateDescriptorSet(base->GetDevice());
 	descriptorSet.UpdateDescriptorSet<glm::mat4x4>(base->GetDevice(), uniformBuffer.GetBuffer());
 
@@ -244,11 +245,11 @@ int main(int argc, char* argv[]) {
 	while (!rendererWindow->isShouldClose) {
 
 		currentFrame = SDL_GetTicks() * 0.001f;
-		printf("Current: %f\n", currentFrame);
+		//printf("Current: %f\n", currentFrame);
 		deltaTime = currentFrame - lastFrame;
-		printf("Delta: %f\n", deltaTime);
+		//printf("Delta: %f\n", deltaTime);
 		lastFrame = currentFrame;
-		printf("Last: %f\n", lastFrame);
+		//printf("Last: %f\n", lastFrame);
 		
 
 		while (rendererWindow->PollEvents(&event)) {
@@ -270,11 +271,35 @@ int main(int argc, char* argv[]) {
 				
 			}
 
+			SDL_GetMouseState(&xpos, &ypos);
 			if (firstMouse) {
-				SDL_GetMouseState(&lastX, &lastY);
+				lastX = xpos;
+				lastY = ypos;
 				firstMouse = false;
 			}
+			
+			float xoffset = xpos - lastX;
+			float yoffset = ypos - lastY;
+			lastX = xpos;
+			lastY = ypos;
 
+			const float sensitivity = 0.1f;
+			xoffset *= sensitivity;
+			yoffset *= sensitivity;
+
+			yaw += xoffset;
+			pitch -= yoffset;
+
+			if (pitch > 89.0f)
+				pitch = 89.0f;
+			if (pitch < -89.0f)
+				pitch = -89.0f;
+
+			glm::vec3 direction;
+			direction.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
+			direction.y = sin(glm::radians(pitch));
+			direction.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
+			cameraFront = glm::normalize(direction);
 		}
 
 		// Not sure that this is part of vertex buffer stuff
@@ -342,7 +367,6 @@ int main(int argc, char* argv[]) {
 
 		commandBuffer.draw(36, 1, 0, 0);
 		
-
 		commandBuffer.endRenderPass();
 		commandBuffer.end();
 

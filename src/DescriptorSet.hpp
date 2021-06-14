@@ -38,7 +38,7 @@ public:
 	const vk::DescriptorSetLayout& GetDescriptorSetLayout() { return descriptorSetLayout; }
 	const vk::DescriptorType& GetDescriptorType() { return descriptorType; }
 	const vk::PipelineLayout& GetPipelineLayout() { return pipelineLayout; }
-	const vk::DescriptorPoolSize& GetPoolSize() { return poolSize; }
+	const std::vector<vk::DescriptorPoolSize>& GetPoolSize() { return poolSizes; }
 	const vk::DescriptorPool& GetDescriptorPool() { return descriptorPool; }
 	const vk::DescriptorSet& GetDescriptorSet() { return descriptorSet; }
 	const vk::WriteDescriptorSet& GetWriteDescriptorSet() { return writeDescriptorSet; }
@@ -48,7 +48,7 @@ private:
 	vk::DescriptorSetLayout descriptorSetLayout;
 	vk::DescriptorType descriptorType;
 	vk::PipelineLayout pipelineLayout;
-	vk::DescriptorPoolSize poolSize;
+	std::vector<vk::DescriptorPoolSize> poolSizes;
 	vk::DescriptorPool descriptorPool;
 	vk::DescriptorSet descriptorSet;
 	vk::WriteDescriptorSet writeDescriptorSet;
