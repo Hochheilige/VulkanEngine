@@ -121,4 +121,25 @@ namespace utils {
 		);
 	}
 
+	vk::ShaderModule loadShaderModule(const char* filePath, const vk::Device& device) {
+		std::ifstream file(filePath, std::ios::ate | std::ios::binary);
+		if (!file.is_open())
+			throw std::runtime_error("cannot open shader file");
+
+		size_t fileSize = static_cast<size_t>(file.tellg());
+		std::vector<uint32_t> buffer(fileSize / sizeof(uint32_t));
+
+		file.seekg(0);
+		file.read((char*)buffer.data(), fileSize);
+		file.close();
+
+		vk::ShaderModuleCreateInfo shaderModuleInfo(
+			vk::ShaderModuleCreateFlags(), buffer
+		);
+
+		printf("Shader module %s successfully load\n", filePath);
+
+		return device.createShaderModule(shaderModuleInfo);
+	}
+
 }

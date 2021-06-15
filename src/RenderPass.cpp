@@ -1,6 +1,14 @@
 #include "RenderPass.hpp"
 
-RenderPass::RenderPass(const vk::Format& format, const vk::Format& depthFormat) {
+RenderPass::RenderPass()
+{
+}
+
+RenderPass::~RenderPass()
+{
+}
+
+void RenderPass::Create(const vk::Device& device, const vk::Format& format, const vk::Format& depthFormat) {
 	attachmentDescriptions[0] = vk::AttachmentDescription(
 		vk::AttachmentDescriptionFlags(),
 		format,
@@ -35,13 +43,7 @@ RenderPass::RenderPass(const vk::Format& format, const vk::Format& depthFormat) 
 		{},
 		&depthReference
 	};
-}
 
-RenderPass::~RenderPass()
-{
-}
-
-void RenderPass::Create(const vk::Device& device) {
 	renderPass = device.createRenderPass(
 		vk::RenderPassCreateInfo(
 			vk::RenderPassCreateFlags(),

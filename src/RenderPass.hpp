@@ -6,10 +6,11 @@
 
 class RenderPass {
 public:
-	RenderPass(const vk::Format& format, const vk::Format& depthFormat);
+	RenderPass();
 	~RenderPass();
 
-	void Create(const vk::Device& device);
+
+	void Create(const vk::Device& device, const vk::Format& format, const vk::Format& depthFormat);
 
 	const vk::AttachmentReference& GetColorReference() { return colorReference; }
 	const vk::AttachmentReference& GetDepthReference() { return depthReference; }

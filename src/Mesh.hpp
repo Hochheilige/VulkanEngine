@@ -6,15 +6,12 @@
 
 #include <vector>
 
-struct VertexInputDescription {
-	std::vector<vk::VertexInputBindingDescription> bindings;
-	std::vector<vk::VertexInputAttributeDescription> attributes;
-};
+#include <Vertex.hpp>
+#include <Buffer.hpp>
 
-struct Vertex {
-	glm::vec3 position;
-	glm::vec3 normal;
-	glm::vec3 color;
+class Buffer;
 
-	static VertexInputDescription GetVertexDescription();
+struct Mesh {
+	std::vector<Vertex> vertices;
+	Buffer buffer;
 };

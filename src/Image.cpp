@@ -8,20 +8,11 @@ Image::Image(const vk::PhysicalDevice gpu, vk::Format format)
 Image::~Image() {
 }
 
-void Image::Init(const VulkanBase& base, vk::ImageAspectFlagBits flags) {
+void Image::InitResource(const vk::PhysicalDevice& gpu) {
+	memoryProperties = gpu.getMemoryProperties();
+}
 
-	// This is need only for depth image and this should be clear
-	// TODO: tiling??????
-	vk::ImageTiling tiling;
-	if (formatProperties.linearTilingFeatures & vk::FormatFeatureFlagBits::eDepthStencilAttachment) {
-		tiling = vk::ImageTiling::eLinear;
-	}
-	else if (formatProperties.optimalTilingFeatures & vk::FormatFeatureFlagBits::eDepthStencilAttachment) {
-		tiling = vk::ImageTiling::eOptimal;
-	}
-	else {
-		throw std::runtime_error("DepthStencilAttachment is not supported for D16Unorm depth format.");
-	}
+void Image::Init(const VulkanBase& base, vk::Format format, vk::ImageAspectFlagBits flags, bool isDepth) {
 
 	vk::ImageCreateInfo imageInfo(
 		vk::ImageCreateFlags(),
@@ -30,9 +21,33 @@ void Image::Init(const VulkanBase& base, vk::ImageAspectFlagBits flags) {
 		vk::Extent3D(base.GetSurfaceCapabilities().currentExtent, 1),
 		1, 1,
 		vk::SampleCountFlagBits::e1,
-		tiling,
-		vk::ImageUsageFlagBits::eDepthStencilAttachment
+		{},
+		{}
 	);
+
+	if (memoryProperties != base.GetPhysicalDevice().getMemoryProperties()) {
+		InitResource(base.GetPhysicalDevice());
+		SetFormat(base.GetPhysicalDevice(), format);
+	}
+
+	vk::ImageTiling tiling;
+	if (isDepth) {
+		// This is need only for depth image and this should be clear
+		// TODO: tiling??????
+		
+		if (formatProperties.linearTilingFeatures & vk::FormatFeatureFlagBits::eDepthStencilAttachment) {
+			tiling = vk::ImageTiling::eLinear;
+		}
+		else if (formatProperties.optimalTilingFeatures & vk::FormatFeatureFlagBits::eDepthStencilAttachment) {
+			tiling = vk::ImageTiling::eOptimal;
+		}
+		else {
+			throw std::runtime_error("DepthStencilAttachment is not supported for D16Unorm depth format.");
+		}
+
+		imageInfo.setTiling(tiling);
+		imageInfo.setUsage(vk::ImageUsageFlagBits::eDepthStencilAttachment);
+	}
 
 	image = base.GetDevice().createImage(imageInfo);
 
@@ -66,4 +81,9 @@ void Image::Init(const VulkanBase& base, vk::ImageAspectFlagBits flags) {
 			subResourceRange
 		)
 	);
+}
+
+void Image::SetFormat(const vk::PhysicalDevice& gpu, vk::Format f) {
+	format = f; 
+	formatProperties = gpu.getFormatProperties(format);
 }

@@ -8,10 +8,13 @@
 
 class Swapchain {
 public:
+	Swapchain() {}
 	Swapchain(const VulkanBase& base);
 	~Swapchain() {}
 
 	void RecreateSwapchain(vk::Extent2D extent);
+
+	void Init(const VulkanBase& base);
 
 	const vk::SwapchainKHR& GetSwapchain() const { return swapchain; }
 	const std::vector<vk::Image> GetImages() const { return images; }

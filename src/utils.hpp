@@ -3,6 +3,7 @@
 #include <vulkan/vulkan.hpp>
 
 #include <cstdint>
+#include <fstream>
 
 namespace utils {
 	uint32_t findMemoryType(vk::PhysicalDeviceMemoryProperties const& memoryProperties, uint32_t typeBits, vk::MemoryPropertyFlags requirementsMask);
@@ -25,5 +26,5 @@ namespace utils {
 
 	vk::DescriptorSetLayoutBinding descriptorsetLayoutBinding(vk::DescriptorType type, vk::ShaderStageFlags stageFlags, uint32_t binding);
 
-
+	vk::ShaderModule loadShaderModule(const char* filePath, const vk::Device& device);
 }

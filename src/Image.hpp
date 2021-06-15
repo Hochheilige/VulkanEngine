@@ -8,10 +8,11 @@
 
 class Image : public Resource {
 public:
+	Image() {}
 	Image(const vk::PhysicalDevice gpu, vk::Format format = vk::Format::eUndefined);
 	~Image();
 
-	void Init(const VulkanBase& base, vk::ImageAspectFlagBits flags = vk::ImageAspectFlagBits::eColor);
+	void Init(const VulkanBase& base, vk::Format format, vk::ImageAspectFlagBits flags = vk::ImageAspectFlagBits::eColor, bool isDepth = false);
 
 	const vk::Image& GetImage() { return image; }
 	const vk::ImageView& GetImageView() { return imageView; }
@@ -19,7 +20,7 @@ public:
 	const vk::FormatProperties& GetFormatProperties() { return formatProperties; }
 	const vk::DeviceMemory& GetDeviceMemory() { return deviceMemory; }
 
-	void SetFormat(vk::Format f) { format = f; }
+	void SetFormat(const vk::PhysicalDevice& gpu, vk::Format f);
 
 private:
 	vk::Image image;
@@ -27,4 +28,6 @@ private:
 	vk::Format format;
 	vk::FormatProperties formatProperties;
 	vk::DeviceMemory deviceMemory;
+
+	void InitResource(const vk::PhysicalDevice& gpu);
 };

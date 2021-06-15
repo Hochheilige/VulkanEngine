@@ -3,23 +3,32 @@
 #include <vulkan/vulkan.hpp>
 
 #include <Resource.hpp>
+#include <Vertex.hpp>
 #include <VulkanBase.hpp>
 
 // Можно сделать шаблонным не весь класс а только некоторые функции
 
 class Buffer : public Resource {
 public:
+	Buffer() : flags(vk::BufferUsageFlagBits::eVertexBuffer){
+	}
 	Buffer(const vk::PhysicalDevice gpu, vk::BufferUsageFlagBits flags) 
 		: Resource(gpu), flags(flags) {
 	}
 	~Buffer() {}
 
 	template <class Object>
-	void Init(const vk::Device& device) {
+	void Init(const vk::PhysicalDevice& gpu, const vk::Device& device, vk::BufferUsageFlagBits fl, const uint32_t bufferSize = 1) {
+		if (memoryProperties != gpu.getMemoryProperties()) {
+			InitResource(gpu);
+		}
+
+		flags = fl;
+
 		buffer = device.createBuffer(
 			vk::BufferCreateInfo(
 				vk::BufferCreateFlags(),
-				sizeof(Object),
+				sizeof(Object) * bufferSize,
 				flags
 			)
 		);
@@ -37,6 +46,8 @@ public:
 		device.unmapMemory(deviceMemory);
 		device.bindBufferMemory(buffer, deviceMemory, 0);
 	}
+
+	void CopyBuffer(const vk::Device& device, const std::vector<Vertex>& vertices);
 
 	void MapBuffer(const vk::Device& device) {
 		data = static_cast<uint8_t*>(device.mapMemory(deviceMemory, 0, bufferMemoryRequiremenents.size));
@@ -70,4 +81,6 @@ private:
 	vk::BufferUsageFlagBits flags;
 
 	uint8_t* data = nullptr;
+
+	void InitResource(const vk::PhysicalDevice& gpu);
 };
