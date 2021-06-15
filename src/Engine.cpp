@@ -1,6 +1,9 @@
 #include <Engine.hpp>
 
 Engine::Engine() {
+	cameraPos = glm::vec3(0.0f, 0.0f, 3.0f);
+	cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
+	cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
 }
 
 Engine::~Engine() {
@@ -24,9 +27,6 @@ void Engine::Run() {
 	bool isCaptureMouse = false;
 
 	// Camera data
-	glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, 3.0f);
-	glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
-	glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
 
 	float deltaTime = 0.0f;
 	float lastFrame = 0.0f;
@@ -129,6 +129,7 @@ void Engine::CleanUp() {
 		vulkanBase.GetDevice().destroySemaphore(frames[i].presentSemaphore);
 	}
 
+	vulkanBase.GetDevice().destroyPipelineLayout(rotatingColoredCubePipelineLayout);
 	vulkanBase.GetDevice().destroyPipeline(rotatingColoredCubePipeline);
 	vulkanBase.GetDevice().freeMemory(coloredCube.buffer.GetDeviceMemory());
 	vulkanBase.GetDevice().destroyBuffer(coloredCube.buffer.GetBuffer());
@@ -197,9 +198,20 @@ void Engine::InitPipelines() {
 	vk::ShaderModule cubeVertexShaderModule = utils::loadShaderModule("../shaders/cube.vert.spv", vulkanBase.GetDevice());
 	vk::ShaderModule cubeFragmentShaderModule = utils::loadShaderModule("../shaders/cube.frag.spv", vulkanBase.GetDevice());
 
-	rotatingColoredCubePipelineLayout = vulkanBase.GetDevice().createPipelineLayout(
-		vk::PipelineLayoutCreateInfo(vk::PipelineLayoutCreateFlags())
+	vk::PushConstantRange pushConstant(
+		vk::ShaderStageFlagBits::eVertex,
+		0,
+		sizeof(MeshPushConstant)
 	);
+
+	rotatingColoredCubePipelineLayout = vulkanBase.GetDevice().createPipelineLayout(
+		vk::PipelineLayoutCreateInfo(
+			vk::PipelineLayoutCreateFlags(),
+			{},
+			pushConstant
+		)
+	);
+
 
 	PipelineBuilder pipelineBuilder;
 
@@ -283,7 +295,6 @@ void Engine::Draw() {
 	vk::DeviceSize offset = 0;
 	cmd.bindVertexBuffers(0, coloredCube.buffer.GetBuffer(), { offset });
 	
-
 	cmd.setViewport(
 		0,
 		vk::Viewport(
@@ -296,6 +307,28 @@ void Engine::Draw() {
 	);
 
 	cmd.setScissor(0, vk::Rect2D(vk::Offset2D(0, 0), swapchain.GetExtent()));
+
+	glm::mat4x4 model = glm::mat4x4(1.0f);
+	model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f));
+	model = glm::scale(model, glm::vec3(0.2, 0.2, 0.2));
+	model = glm::rotate(model, glm::radians(frameNumber * 0.5f), glm::vec3(1.0f, 0.3f, 0.5f));
+	glm::mat4x4 view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
+	glm::mat4x4 projection = glm::perspective(glm::radians(45.0f), (float)swapchain.GetExtent().width / swapchain.GetExtent().height, 0.1f, 100.0f);
+	glm::mat4x4 clip = glm::mat4x4(
+		1.0f,  0.0f, 0.0f, 0.0f,
+		0.0f, -1.0f, 0.0f, 0.0f,
+		0.0f,  0.0f, 0.5f, 0.0f,
+		0.0f,  0.0f, 0.5f, 1.0f
+	);
+
+	MeshPushConstant pushMatrices{
+		model,
+		view,
+		projection,
+		clip
+	};
+
+	cmd.pushConstants(rotatingColoredCubePipelineLayout, vk::ShaderStageFlagBits::eVertex, 0, sizeof(MeshPushConstant), &pushMatrices);
 
 	cmd.draw(coloredCube.vertices.size(), 1, 0, 0);
 

@@ -55,6 +55,10 @@ private:
 
 	uint32_t frameNumber{ 0 };
 
+	glm::vec3 cameraPos;
+	glm::vec3 cameraFront;
+	glm::vec3 cameraUp;
+
 	void InitCommands();
 	void InitSyncStructures();
 	void InitPipelines();
