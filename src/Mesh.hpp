@@ -15,6 +15,8 @@ class Buffer;
 struct Mesh {
 	std::vector<Vertex> vertices;
 	Buffer buffer;
+
+	bool LoadFromObj(const char* filename);
 };
 
 struct MeshPushConstant {
@@ -23,3 +25,4 @@ struct MeshPushConstant {
 	glm::mat4 projection;
 	glm::mat4 clip;
 };
+

@@ -88,7 +88,7 @@ void Swapchain::Init(const VulkanBase& base) {
 	vk::SwapchainCreateInfoKHR swapchainInfo(
 		vk::SwapchainCreateFlagsKHR(),
 		base.GetSurface(),
-		base.GetSurfaceCapabilities().minImageCount + 1,
+		base.GetSurfaceCapabilities().minImageCount,
 		base.GetFormat(),
 		vk::ColorSpaceKHR::eSrgbNonlinear,
 		extent,

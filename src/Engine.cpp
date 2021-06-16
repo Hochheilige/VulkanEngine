@@ -13,13 +13,14 @@ void Engine::Init() {
 	window = Window::CreateWindow("Vulkan Renderer", 1024, 768);
 	vulkanBase.Init(window->GetWindow());
 	swapchain.Init(vulkanBase);
-	depthImage.Init(vulkanBase, vk::Format::eD16Unorm, vk::ImageAspectFlagBits::eDepth, true);
+	depthImage.Init(vulkanBase, vk::Format::eD32Sfloat, vk::ImageAspectFlagBits::eDepth, true);
 	renderPass.Create(vulkanBase.GetDevice(), vulkanBase.GetFormat(), depthImage.GetFormat());
 	framebuffer.Create(vulkanBase.GetDevice(), renderPass.GetRenderPass(), swapchain, depthImage.GetImageView());
 	InitCommands();
 	InitSyncStructures();
 	InitPipelines();
 	LoadMeshes();
+	InitScene();
 }
 
 void Engine::Run() {
@@ -127,17 +128,20 @@ void Engine::CleanUp() {
 		vulkanBase.GetDevice().destroyFence(frames[i].renderFence);
 		vulkanBase.GetDevice().destroySemaphore(frames[i].renderSemaphore);
 		vulkanBase.GetDevice().destroySemaphore(frames[i].presentSemaphore);
-	}
-
-	vulkanBase.GetDevice().destroyPipelineLayout(rotatingColoredCubePipelineLayout);
-	vulkanBase.GetDevice().destroyPipeline(rotatingColoredCubePipeline);
-	vulkanBase.GetDevice().freeMemory(coloredCube.buffer.GetDeviceMemory());
-	vulkanBase.GetDevice().destroyBuffer(coloredCube.buffer.GetBuffer());
-
-	for (uint32_t i = 0; i < FRAME_OVERLAP; ++i) {
 		vulkanBase.GetDevice().freeCommandBuffers(frames[i].commandPool, frames[i].commandBuffer);
 		vulkanBase.GetDevice().destroyCommandPool(frames[i].commandPool);
 	}
+
+	vulkanBase.GetDevice().destroyFence(uploadContext.uploadFence);
+	vulkanBase.GetDevice().destroyCommandPool(uploadContext.commandPool);
+
+	vulkanBase.GetDevice().destroyPipelineLayout(meshPipelineLayout);
+	vulkanBase.GetDevice().destroyPipeline(meshPipeline);
+
+	vulkanBase.GetDevice().freeMemory(monkey.buffer.GetDeviceMemory());
+	vulkanBase.GetDevice().destroyBuffer(monkey.buffer.GetBuffer());
+	vulkanBase.GetDevice().freeMemory(_triangleMesh.buffer.GetDeviceMemory());
+	vulkanBase.GetDevice().destroyBuffer(_triangleMesh.buffer.GetBuffer());
 
 	for (const auto& framebuffer : framebuffer.GetFramebuffers()) {
 		vulkanBase.GetDevice().destroyFramebuffer(framebuffer);
@@ -204,7 +208,7 @@ void Engine::InitPipelines() {
 		sizeof(MeshPushConstant)
 	);
 
-	rotatingColoredCubePipelineLayout = vulkanBase.GetDevice().createPipelineLayout(
+	meshPipelineLayout = vulkanBase.GetDevice().createPipelineLayout(
 		vk::PipelineLayoutCreateInfo(
 			vk::PipelineLayoutCreateFlags(),
 			{},
@@ -234,6 +238,7 @@ void Engine::InitPipelines() {
 		)
 	);
 
+	pipelineBuilder.depthStencil = utils::depthStencilCreateInfo(true, true, vk::CompareOp::eLessOrEqual);
 	pipelineBuilder.inputAssembly = utils::inputAssemblyCreateInfo(vk::PrimitiveTopology::eTriangleList);
 	
 	std::array<vk::DynamicState, 2> dynamicStates = { vk::DynamicState::eViewport, vk::DynamicState::eScissor };
@@ -246,9 +251,11 @@ void Engine::InitPipelines() {
 	pipelineBuilder.rasterizer = utils::rasterizationStateCreateInfo(vk::PolygonMode::eFill);
 	pipelineBuilder.multisampling = utils::multisamplingStateCreateInfo();
 	pipelineBuilder.colorBlendAttachment = utils::colorBlendAttachmentState();
-	pipelineBuilder.pipelineLayout = rotatingColoredCubePipelineLayout;
+	pipelineBuilder.pipelineLayout = meshPipelineLayout;
 
-	rotatingColoredCubePipeline = pipelineBuilder.Build(vulkanBase.GetDevice(), renderPass.GetRenderPass());
+	meshPipeline = pipelineBuilder.Build(vulkanBase.GetDevice(), renderPass.GetRenderPass());
+
+	CreateMaterial(meshPipeline, meshPipelineLayout, "defaultMesh");
 
 	vulkanBase.GetDevice().destroyShaderModule(cubeVertexShaderModule);
 	vulkanBase.GetDevice().destroyShaderModule(cubeFragmentShaderModule);
@@ -277,7 +284,7 @@ void Engine::Draw() {
 	float greenFlash = abs(sin(rand() / 120.0f));
 	float blueFlash = abs(sin(rand() / 120.0f));
 	float alphaFlash = abs(sin(rand() / 120.0f));
-	clearValues[0].color = vk::ClearColorValue(std::array<float, 4>({ {redFlash, greenFlash, blueFlash, alphaFlash} }));
+	clearValues[0].color = vk::ClearColorValue(std::array<float, 4>({ {0.2f, 0.2f, 0.2f, 1} }));
 	clearValues[1].depthStencil = vk::ClearDepthStencilValue(1.0f, 0);
 
 	vk::RenderPassBeginInfo renderPassBeginInfo(
@@ -289,18 +296,19 @@ void Engine::Draw() {
 
 	cmd.beginRenderPass(renderPassBeginInfo, vk::SubpassContents::eInline);
 
-	cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, rotatingColoredCubePipeline);
+	//cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, rotatingColoredCubePipeline);
 	// ???
 	//commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, descriptorSet.GetPipelineLayout(), 0, descriptorSet.GetDescriptorSet(), nullptr);
-	vk::DeviceSize offset = 0;
-	cmd.bindVertexBuffers(0, coloredCube.buffer.GetBuffer(), { offset });
+	/*vk::DeviceSize offset = 0;
+	cmd.bindVertexBuffers(0, monkey.buffer.GetBuffer(), { offset });*/
 	
 	cmd.setViewport(
 		0,
 		vk::Viewport(
-			0.0f, 0.0f,
+			0.0f,
+			0.0f, //static_cast<float>(swapchain.GetExtent().height),
 			static_cast<float>(swapchain.GetExtent().width),
-			static_cast<float>(swapchain.GetExtent().height),
+			static_cast<float>(swapchain.GetExtent().height),//-static_cast<float>(swapchain.GetExtent().height),
 			0.0f,
 			1.0f
 		)
@@ -308,7 +316,7 @@ void Engine::Draw() {
 
 	cmd.setScissor(0, vk::Rect2D(vk::Offset2D(0, 0), swapchain.GetExtent()));
 
-	glm::mat4x4 model = glm::mat4x4(1.0f);
+	/*glm::mat4x4 model = glm::mat4x4(1.0f);
 	model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f));
 	model = glm::scale(model, glm::vec3(0.2, 0.2, 0.2));
 	model = glm::rotate(model, glm::radians(frameNumber * 0.5f), glm::vec3(1.0f, 0.3f, 0.5f));
@@ -328,9 +336,11 @@ void Engine::Draw() {
 		clip
 	};
 
-	cmd.pushConstants(rotatingColoredCubePipelineLayout, vk::ShaderStageFlagBits::eVertex, 0, sizeof(MeshPushConstant), &pushMatrices);
+	cmd.pushConstants(rotatingColoredCubePipelineLayout, vk::ShaderStageFlagBits::eVertex, 0, sizeof(MeshPushConstant), &pushMatrices);*/
 
-	cmd.draw(coloredCube.vertices.size(), 1, 0, 0);
+	//cmd.draw(monkey.vertices.size(), 1, 0, 0);
+
+	DrawObjects(cmd, renderables);
 
 	cmd.endRenderPass();
 	cmd.end();
@@ -358,98 +368,35 @@ void Engine::Draw() {
 }
 
 void Engine::LoadMeshes() {
-	coloredCube.vertices.resize(36); {
-		coloredCube.vertices[0].position = { -1.0f, -1.0f, 1.0f };
-		coloredCube.vertices[0].color = { 1.0f, 0.0f, 0.0f };
-		coloredCube.vertices[1].position = { -1.0f,  1.0f,  1.0f };
-		coloredCube.vertices[1].color = { 0.0f, 1.0f, 0.0f };
-		coloredCube.vertices[2].position = { 1.0f, -1.0f,  1.0f };
-		coloredCube.vertices[2].color = { 0.0f, 0.0f, 1.0f };
-		coloredCube.vertices[3].position = { 1.0f, -1.0f,  1.0f };
-		coloredCube.vertices[3].color = { 0.0f, 0.0f, 1.0f };
-		coloredCube.vertices[4].position = { -1.0f,  1.0f,  1.0f };
-		coloredCube.vertices[4].color = { 0.0f, 1.0f, 0.0f };
-		coloredCube.vertices[5].position = { 1.0f,  1.0f,  1.0f };
-		coloredCube.vertices[5].color = { 1.0f, 0.0f, 0.0f };
-		coloredCube.vertices[6].position = { -1.0f, -1.0f, -1.0f };
-		coloredCube.vertices[6].color = { 1.0f, 0.0f, 0.0f };
-		coloredCube.vertices[7].position = { 1.0f, -1.0f, -1.0f };
-		coloredCube.vertices[7].color = { 0.0f, 1.0f, 0.0f };
-		coloredCube.vertices[8].position = { -1.0f,  1.0f, -1.0f };
-		coloredCube.vertices[8].color = { 0.0f, 0.0f, 1.0f };
-		coloredCube.vertices[9].position = { -1.0f,  1.0f, -1.0f };
-		coloredCube.vertices[9].color = { 0.0f, 0.0f, 1.0f };
-		coloredCube.vertices[10].position = { 1.0f, -1.0f, -1.0f };
-		coloredCube.vertices[10].color = { 0.0f, 1.0f, 0.0f };
-		coloredCube.vertices[11].position = { 1.0f,  1.0f, -1.0f };
-		coloredCube.vertices[11].color = { 1.0f, 0.0f, 0.0f };
-		coloredCube.vertices[12].position = { -1.0f,  1.0f,  1.0f };
-		coloredCube.vertices[12].color = { 1.0f, 0.0f, 0.0f };
-		coloredCube.vertices[13].position = { -1.0f, -1.0f,  1.0f };
-		coloredCube.vertices[13].color = { 0.0f, 1.0f, 0.0f };
-		coloredCube.vertices[14].position = { -1.0f,  1.0f, -1.0f };
-		coloredCube.vertices[14].color = { 0.0f, 0.0f, 1.0f };
-		coloredCube.vertices[15].position = { -1.0f,  1.0f, -1.0f };
-		coloredCube.vertices[15].color = { 0.0f, 0.0f, 1.0f };
-		coloredCube.vertices[16].position = { -1.0f, -1.0f,  1.0f };
-		coloredCube.vertices[16].color = { 0.0f, 1.0f, 0.0f };
-		coloredCube.vertices[17].position = { -1.0f, -1.0f, -1.0f };
-		coloredCube.vertices[17].color = { 1.0f, 0.0f, 0.0f };
-		coloredCube.vertices[18].position = { 1.0f,  1.0f,  1.0f };
-		coloredCube.vertices[18].color = { 1.0f, 0.0f, 0.0f };
-		coloredCube.vertices[19].position = { 1.0f,  1.0f, -1.0f };
-		coloredCube.vertices[19].color = { 0.0f, 1.0f, 0.0f };
-		coloredCube.vertices[20].position = { 1.0f, -1.0f,  1.0f };
-		coloredCube.vertices[20].color = { 0.0f, 0.0f, 1.0f };
-		coloredCube.vertices[21].position = { 1.0f, -1.0f,  1.0f };
-		coloredCube.vertices[21].color = { 0.0f, 0.0f, 1.0f };
-		coloredCube.vertices[22].position = { 1.0f,  1.0f, -1.0f };
-		coloredCube.vertices[22].color = { 0.0f, 1.0f, 0.0f };
-		coloredCube.vertices[23].position = { 1.0f, -1.0f, -1.0f };
-		coloredCube.vertices[23].color = { 1.0f, 0.0f, 0.0f };
-		coloredCube.vertices[24].position = { 1.0f,  1.0f,  1.0f };
-		coloredCube.vertices[24].color = { 1.0f, 0.0f, 0.0f };
-		coloredCube.vertices[25].position = { -1.0f,  1.0f,  1.0f };
-		coloredCube.vertices[25].color = { 0.0f, 1.0f, 0.0f };
-		coloredCube.vertices[26].position = { 1.0f,  1.0f, -1.0f };
-		coloredCube.vertices[26].color = { 0.0f, 0.0f, 1.0f };
-		coloredCube.vertices[27].position = { 1.0f,  1.0f, -1.0f };
-		coloredCube.vertices[27].color = { 0.0f, 0.0f, 1.0f };
-		coloredCube.vertices[28].position = { -1.0f,  1.0f,  1.0f };
-		coloredCube.vertices[28].color = { 0.0f, 1.0f, 0.0f };
-		coloredCube.vertices[29].position = { -1.0f,  1.0f, -1.0f };
-		coloredCube.vertices[29].color = { 1.0f, 0.0f, 0.0f };
-		coloredCube.vertices[30].position = { 1.0f, -1.0f,  1.0f };
-		coloredCube.vertices[30].color = { 1.0f, 0.0f, 0.0f };
-		coloredCube.vertices[31].position = { 1.0f, -1.0f, -1.0f };
-		coloredCube.vertices[31].color = { 0.0f, 1.0f, 0.0f };
-		coloredCube.vertices[32].position = { -1.0f, -1.0f,  1.0f };
-		coloredCube.vertices[32].color = { 0.0f, 0.0f, 1.0f };
-		coloredCube.vertices[33].position = { -1.0f, -1.0f,  1.0f };
-		coloredCube.vertices[33].color = { 0.0f, 0.0f, 1.0f };
-		coloredCube.vertices[34].position = { 1.0f, -1.0f, -1.0f };
-		coloredCube.vertices[34].color = { 0.0f, 1.0f, 0.0f };
-		coloredCube.vertices[35].position = { -1.0f, -1.0f, -1.0f };
-		coloredCube.vertices[35].color = { 1.0f, 0.0f, 0.0f };
-	}
-	UploadMeshes(coloredCube);
 
-	//_triangleMesh.vertices.resize(3);
+	Mesh sponza;
+	sponza.LoadFromObj("../assets/sponza.obj");
 
-	////vertex positions
-	//_triangleMesh.vertices[0].position = { 1.f, 1.f, 0.0f };
-	//_triangleMesh.vertices[1].position = { -1.f, 1.f, 0.0f };
-	//_triangleMesh.vertices[2].position = { 0.f,-1.f, 0.0f };
+	UploadMeshes(sponza);
 
-	////vertex colors, all green
-	//_triangleMesh.vertices[0].color = { 0.f, 1.f, 0.0f }; //pure green
-	//_triangleMesh.vertices[1].color = { 0.f, 1.f, 0.0f }; //pure green
-	//_triangleMesh.vertices[2].color = { 0.f, 1.f, 0.0f }; //pure green
+	monkey.LoadFromObj("../assets/monkey_smooth.obj");
 
-	////we don't care about the vertex normals
+	/*UploadMeshes(monkey);*/
+
+	_triangleMesh.vertices.resize(3);
+
+	//vertex positions
+	_triangleMesh.vertices[0].position = { 1.f, 1.f, 0.0f };
+	_triangleMesh.vertices[1].position = { -1.f, 1.f, 0.0f };
+	_triangleMesh.vertices[2].position = { 0.f,-1.f, 0.0f };
+
+	//vertex colors, all green
+	_triangleMesh.vertices[0].color = { 0.f, 1.f, 0.0f }; //pure green
+	_triangleMesh.vertices[1].color = { 0.f, 1.f, 0.0f }; //pure green
+	_triangleMesh.vertices[2].color = { 0.f, 1.f, 0.0f }; //pure green
+
+	//we don't care about the vertex normals
 
 	//UploadMeshes(_triangleMesh);
 
+	//meshes["monkey"] = monkey;
+	//meshes["triangle"] = _triangleMesh;
+	meshes["sponza"] = sponza;
 }
 
 void Engine::UploadMeshes(Mesh& mesh) {
@@ -458,5 +405,113 @@ void Engine::UploadMeshes(Mesh& mesh) {
 		vk::BufferUsageFlagBits::eVertexBuffer, mesh.vertices.size());
 	mesh.buffer.CopyBuffer(vulkanBase.GetDevice(), mesh.vertices);
 
+}
+
+void Engine::InitScene() {
+	glm::mat4x4 model;
+	glm::mat4x4 view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
+	glm::mat4x4 projection = glm::perspective(glm::radians(45.0f), (float)swapchain.GetExtent().width / swapchain.GetExtent().height, 0.1f, 10000.0f);
+	glm::mat4x4 clip = glm::mat4x4(
+		1.0f, 0.0f, 0.0f, 0.0f,
+		0.0f, -1.0f, 0.0f, 0.0f,
+		0.0f, 0.0f, 0.5f, 0.0f,
+		0.0f, 0.0f, 0.5f, 1.0f
+	);
+	//
+	//RenderObject monkey{
+	//	GetMesh("monkey"),
+	//	GetMaterial("defaultMesh")
+	//};
+
+	//for (int32_t x = -5; x <= 5; ++x) {
+	//	for (int32_t y = -5; y <= 5; ++y) {
+	//		for (int32_t z = -5; z <= 5; ++z) {
+	//			model = glm::mat4x4(1.0f);
+	//			model = glm::translate(model, glm::vec3(x, y, z));
+	//			model = glm::scale(model, glm::vec3(0.2, 0.2, 0.2));
+	//			monkey.transform = {
+	//				model,
+	//				view,
+	//				projection,
+	//				clip
+	//			};
+	//			renderables.push_back(monkey);
+	//		}
+	//	}
+	//}
+
+	model = glm::mat4x4(1.0f);
+	model = glm::translate(model, glm::vec3(0, 0, 0));
+	model = glm::scale(model, glm::vec3(0.2, 0.2, 0.2));
+	//model = glm::rotate(model, glm::radians(frameNumber * 0.5f), glm::vec3(1.0f, 0.3f, 0.5f));
+
+	//monkey.mesh = GetMesh("triangle");
+	//monkey.transform = {
+	//	model,
+	//	view,
+	//	projection,
+	//	clip
+	//};
+
+	RenderObject sponza{
+		GetMesh("sponza"),
+		GetMaterial("defaultMesh"),
+		{
+			model,
+			view,
+			projection,
+			clip
+		}
+	};
+
+	renderables.push_back(sponza);
+}
+
+void Engine::DrawObjects(const vk::CommandBuffer& cmd, std::vector<RenderObject>& objects) {
+	Mesh* lastMesh = nullptr;
+	Material* lastMaterial = nullptr;
+	for (auto& object : objects) {
+		if (object.material != lastMaterial) {
+			cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, object.material->pipeline);
+			lastMaterial = object.material;
+		}
+
+		object.transform.view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
+		//object.transform.model = glm::rotate(object.transform.model, glm::radians((float)(frameNumber % 10)), glm::vec3(1.0f, 0.3f, 0.5f));
+
+		cmd.pushConstants(object.material->pipelineLayout, vk::ShaderStageFlagBits::eVertex, 0, sizeof(MeshPushConstant), &object.transform);
+
+		if (object.mesh != lastMesh) {
+			vk::DeviceSize offset = 0;
+			cmd.bindVertexBuffers(0, 1, &object.mesh->buffer.GetBuffer(), &offset);
+			lastMesh = object.mesh;
+		}
+
+		cmd.draw(object.mesh->vertices.size(), 1, 0, 0);
+	}
+}
+
+const Material* Engine::CreateMaterial(const vk::Pipeline& pipeline,
+	const vk::PipelineLayout& pipelineLayout, const std::string& name) {
+	Material mat{
+		pipeline,
+		pipelineLayout,
+	};
+	materials[name] = mat;
+	return &materials.at(name);
+}
+
+Material* Engine::GetMaterial(const std::string& name) {
+	const auto iter = materials.find(name);
+	if (iter == materials.end())
+		return nullptr;
+	return &(*iter).second;
+}
+
+Mesh* Engine::GetMesh(const std::string& name) {
+	const auto iter = meshes.find(name);
+	if (iter == meshes.end())
+		return nullptr;
+	return &(*iter).second;
 }
 

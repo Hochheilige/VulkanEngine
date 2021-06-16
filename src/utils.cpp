@@ -102,12 +102,14 @@ namespace utils {
 
 		return vk::PipelineDepthStencilStateCreateInfo(
 			vk::PipelineDepthStencilStateCreateFlags(),
-			isDepthTest, isDepthWrite,
+			isDepthTest ? VK_TRUE : VK_FALSE, 
+			isDepthWrite ? VK_TRUE : VK_FALSE,
 			isDepthTest ? compareOp : vk::CompareOp::eAlways,
 			false,
 			false,
 			stencilOpState,
 			stencilOpState,
+			//{}, {},
 			0.0f, 1.0f
 		);
 	}
