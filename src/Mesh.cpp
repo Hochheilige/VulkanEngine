@@ -41,6 +41,7 @@ bool Mesh::LoadFromObj(const char* filename) {
 
 			// Loop over vertices in the face.
 			for (size_t v = 0; v < fv; v++) {
+				Vertex new_vert;
 				// access to vertex
 				tinyobj::index_t idx = shapes[s].mesh.indices[index_offset + v];
 
@@ -49,22 +50,29 @@ bool Mesh::LoadFromObj(const char* filename) {
 				tinyobj::real_t vy = attrib.vertices[3 * idx.vertex_index + 1];
 				tinyobj::real_t vz = attrib.vertices[3 * idx.vertex_index + 2];
 				//vertex normal
-				tinyobj::real_t nx = attrib.normals[3 * idx.normal_index + 0];
-				tinyobj::real_t ny = attrib.normals[3 * idx.normal_index + 1];
-				tinyobj::real_t nz = attrib.normals[3 * idx.normal_index + 2];
+				if (!attrib.normals.empty()) {
+					tinyobj::real_t nx = attrib.normals[3 * idx.normal_index + 0];
+					tinyobj::real_t ny = attrib.normals[3 * idx.normal_index + 1];
+					tinyobj::real_t nz = attrib.normals[3 * idx.normal_index + 2];
 
+					new_vert.normal.x = nx;
+					new_vert.normal.y = ny;
+					new_vert.normal.z = nz;
+					new_vert.color.x = nx;
+					new_vert.color.y = ny;
+					new_vert.color.z = nz;
+				}
+
+				if (!attrib.colors.empty()) {
+
+				}
 				//copy it into our vertex
-				Vertex new_vert;
+				
 				new_vert.position.x = vx;
 				new_vert.position.y = vy;
 				new_vert.position.z = vz;
 
-				new_vert.normal.x = nx;
-				new_vert.normal.y = ny;
-				new_vert.normal.z = nz;
-
-				//we are setting the vertex color as the vertex normal. This is just for display purposes
-				new_vert.color = new_vert.normal;
+			
 
 				vertices.push_back(new_vert);
 			}

@@ -52,8 +52,7 @@ private:
 
 	vk::PipelineLayout meshPipelineLayout;
 	vk::Pipeline meshPipeline;
-	Mesh _triangleMesh;
-	Mesh monkey;
+	std::vector<Mesh> meshBuffers;
 
 	UploadContext uploadContext;
 
@@ -66,6 +65,11 @@ private:
 	glm::vec3 cameraPos;
 	glm::vec3 cameraFront;
 	glm::vec3 cameraUp;
+
+	glm::mat4x4 model;
+	glm::mat4x4 view;
+	glm::mat4x4 projection;
+	glm::mat4x4 clip;
 
 	void InitCommands();
 	void InitSyncStructures();

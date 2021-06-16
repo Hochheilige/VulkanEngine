@@ -1,9 +1,18 @@
 #include <Engine.hpp>
 
 Engine::Engine() {
-	cameraPos = glm::vec3(0.0f, 0.0f, 3.0f);
+	cameraPos = glm::vec3(0.0f, 10.0f, 0.0f);
 	cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
-	cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
+	cameraUp = glm::vec3(0.0f, -1.0f, 0.0f);
+	model = glm::mat4x4(1.0f);
+	view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
+	projection = glm::perspective(glm::radians(45.0f), 1024.0f / 768, 0.1f, 10000.0f);
+	clip = glm::mat4x4(
+		1.0f, 0.0f, 0.0f, 0.0f,
+		0.0f, -1.0f, 0.0f, 0.0f,
+		0.0f, 0.0f, 0.5f, 0.0f,
+		0.0f, 0.0f, 0.5f, 1.0f
+	);
 }
 
 Engine::~Engine() {
@@ -101,7 +110,7 @@ void Engine::Run() {
 				xoffset *= sensitivity;
 				yoffset *= sensitivity;
 
-				yaw += xoffset;
+				yaw -= xoffset;
 				pitch -= yoffset;
 
 				if (pitch > 89.0f)
@@ -135,13 +144,14 @@ void Engine::CleanUp() {
 	vulkanBase.GetDevice().destroyFence(uploadContext.uploadFence);
 	vulkanBase.GetDevice().destroyCommandPool(uploadContext.commandPool);
 
+	for (const auto& meshBuffer : meshBuffers) {
+		vulkanBase.GetDevice().freeMemory(meshBuffer.buffer.GetDeviceMemory());
+		vulkanBase.GetDevice().destroyBuffer(meshBuffer.buffer.GetBuffer());
+	}
+
+
 	vulkanBase.GetDevice().destroyPipelineLayout(meshPipelineLayout);
 	vulkanBase.GetDevice().destroyPipeline(meshPipeline);
-
-	vulkanBase.GetDevice().freeMemory(monkey.buffer.GetDeviceMemory());
-	vulkanBase.GetDevice().destroyBuffer(monkey.buffer.GetBuffer());
-	vulkanBase.GetDevice().freeMemory(_triangleMesh.buffer.GetDeviceMemory());
-	vulkanBase.GetDevice().destroyBuffer(_triangleMesh.buffer.GetBuffer());
 
 	for (const auto& framebuffer : framebuffer.GetFramebuffers()) {
 		vulkanBase.GetDevice().destroyFramebuffer(framebuffer);
@@ -201,6 +211,7 @@ void Engine::InitPipelines() {
 
 	vk::ShaderModule cubeVertexShaderModule = utils::loadShaderModule("../shaders/cube.vert.spv", vulkanBase.GetDevice());
 	vk::ShaderModule cubeFragmentShaderModule = utils::loadShaderModule("../shaders/cube.frag.spv", vulkanBase.GetDevice());
+	vk::ShaderModule meshFragmentShaderModule = utils::loadShaderModule("../shaders/meshColored.frag.spv", vulkanBase.GetDevice());
 
 	vk::PushConstantRange pushConstant(
 		vk::ShaderStageFlagBits::eVertex,
@@ -257,6 +268,25 @@ void Engine::InitPipelines() {
 
 	CreateMaterial(meshPipeline, meshPipelineLayout, "defaultMesh");
 
+	pipelineBuilder.shaderStages.clear();
+
+	pipelineBuilder.shaderStages.push_back(
+		utils::pipelineShaderStageCreateInfo(
+			vk::ShaderStageFlagBits::eVertex,
+			cubeVertexShaderModule
+		)
+	);
+	pipelineBuilder.shaderStages.push_back(
+		utils::pipelineShaderStageCreateInfo(
+			vk::ShaderStageFlagBits::eFragment,
+			meshFragmentShaderModule
+		)
+	);
+
+	meshPipeline = pipelineBuilder.Build(vulkanBase.GetDevice(), renderPass.GetRenderPass());
+
+	CreateMaterial(meshPipeline, meshPipelineLayout, "color");
+
 	vulkanBase.GetDevice().destroyShaderModule(cubeVertexShaderModule);
 	vulkanBase.GetDevice().destroyShaderModule(cubeFragmentShaderModule);
 }
@@ -295,50 +325,22 @@ void Engine::Draw() {
 	);
 
 	cmd.beginRenderPass(renderPassBeginInfo, vk::SubpassContents::eInline);
-
-	//cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, rotatingColoredCubePipeline);
 	// ???
 	//commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, descriptorSet.GetPipelineLayout(), 0, descriptorSet.GetDescriptorSet(), nullptr);
-	/*vk::DeviceSize offset = 0;
-	cmd.bindVertexBuffers(0, monkey.buffer.GetBuffer(), { offset });*/
 	
 	cmd.setViewport(
 		0,
 		vk::Viewport(
 			0.0f,
-			0.0f, //static_cast<float>(swapchain.GetExtent().height),
+			static_cast<float>(swapchain.GetExtent().height),
 			static_cast<float>(swapchain.GetExtent().width),
-			static_cast<float>(swapchain.GetExtent().height),//-static_cast<float>(swapchain.GetExtent().height),
+			-static_cast<float>(swapchain.GetExtent().height),
 			0.0f,
 			1.0f
 		)
 	);
 
 	cmd.setScissor(0, vk::Rect2D(vk::Offset2D(0, 0), swapchain.GetExtent()));
-
-	/*glm::mat4x4 model = glm::mat4x4(1.0f);
-	model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f));
-	model = glm::scale(model, glm::vec3(0.2, 0.2, 0.2));
-	model = glm::rotate(model, glm::radians(frameNumber * 0.5f), glm::vec3(1.0f, 0.3f, 0.5f));
-	glm::mat4x4 view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
-	glm::mat4x4 projection = glm::perspective(glm::radians(45.0f), (float)swapchain.GetExtent().width / swapchain.GetExtent().height, 0.1f, 100.0f);
-	glm::mat4x4 clip = glm::mat4x4(
-		1.0f,  0.0f, 0.0f, 0.0f,
-		0.0f, -1.0f, 0.0f, 0.0f,
-		0.0f,  0.0f, 0.5f, 0.0f,
-		0.0f,  0.0f, 0.5f, 1.0f
-	);
-
-	MeshPushConstant pushMatrices{
-		model,
-		view,
-		projection,
-		clip
-	};
-
-	cmd.pushConstants(rotatingColoredCubePipelineLayout, vk::ShaderStageFlagBits::eVertex, 0, sizeof(MeshPushConstant), &pushMatrices);*/
-
-	//cmd.draw(monkey.vertices.size(), 1, 0, 0);
 
 	DrawObjects(cmd, renderables);
 
@@ -369,34 +371,29 @@ void Engine::Draw() {
 
 void Engine::LoadMeshes() {
 
-	Mesh sponza;
+	/*Mesh sponza;
 	sponza.LoadFromObj("../assets/sponza.obj");
 
-	UploadMeshes(sponza);
+	UploadMeshes(sponza);*/
+	//meshes["sponza"] = sponza;
 
-	monkey.LoadFromObj("../assets/monkey_smooth.obj");
+	Mesh mesh;
 
-	/*UploadMeshes(monkey);*/
+	mesh.LoadFromObj("../assets/monkey_smooth.obj");
+	UploadMeshes(mesh);
+	meshBuffers.push_back(mesh);
+	meshes["monkey"] = mesh;
 
-	_triangleMesh.vertices.resize(3);
+	mesh.LoadFromObj("../assets/armadillo.obj");
+	UploadMeshes(mesh);
+	meshBuffers.push_back(mesh);
+	meshes["armadillo"] = mesh;
 
-	//vertex positions
-	_triangleMesh.vertices[0].position = { 1.f, 1.f, 0.0f };
-	_triangleMesh.vertices[1].position = { -1.f, 1.f, 0.0f };
-	_triangleMesh.vertices[2].position = { 0.f,-1.f, 0.0f };
+	mesh.LoadFromObj("../assets/beast.obj");
+	UploadMeshes(mesh);
+	meshBuffers.push_back(mesh);
+	meshes["beast"] = mesh;
 
-	//vertex colors, all green
-	_triangleMesh.vertices[0].color = { 0.f, 1.f, 0.0f }; //pure green
-	_triangleMesh.vertices[1].color = { 0.f, 1.f, 0.0f }; //pure green
-	_triangleMesh.vertices[2].color = { 0.f, 1.f, 0.0f }; //pure green
-
-	//we don't care about the vertex normals
-
-	//UploadMeshes(_triangleMesh);
-
-	//meshes["monkey"] = monkey;
-	//meshes["triangle"] = _triangleMesh;
-	meshes["sponza"] = sponza;
 }
 
 void Engine::UploadMeshes(Mesh& mesh) {
@@ -408,78 +405,64 @@ void Engine::UploadMeshes(Mesh& mesh) {
 }
 
 void Engine::InitScene() {
-	glm::mat4x4 model;
-	glm::mat4x4 view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
-	glm::mat4x4 projection = glm::perspective(glm::radians(45.0f), (float)swapchain.GetExtent().width / swapchain.GetExtent().height, 0.1f, 10000.0f);
-	glm::mat4x4 clip = glm::mat4x4(
-		1.0f, 0.0f, 0.0f, 0.0f,
-		0.0f, -1.0f, 0.0f, 0.0f,
-		0.0f, 0.0f, 0.5f, 0.0f,
-		0.0f, 0.0f, 0.5f, 1.0f
-	);
-	//
-	//RenderObject monkey{
-	//	GetMesh("monkey"),
-	//	GetMaterial("defaultMesh")
-	//};
+	view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
+	projection = glm::perspective(glm::radians(45.0f), (float)swapchain.GetExtent().width / swapchain.GetExtent().height, 0.1f, 10000.0f);
 
-	//for (int32_t x = -5; x <= 5; ++x) {
-	//	for (int32_t y = -5; y <= 5; ++y) {
-	//		for (int32_t z = -5; z <= 5; ++z) {
-	//			model = glm::mat4x4(1.0f);
-	//			model = glm::translate(model, glm::vec3(x, y, z));
-	//			model = glm::scale(model, glm::vec3(0.2, 0.2, 0.2));
-	//			monkey.transform = {
-	//				model,
-	//				view,
-	//				projection,
-	//				clip
-	//			};
-	//			renderables.push_back(monkey);
-	//		}
-	//	}
-	//}
-
-	model = glm::mat4x4(1.0f);
 	model = glm::translate(model, glm::vec3(0, 0, 0));
-	model = glm::scale(model, glm::vec3(0.2, 0.2, 0.2));
-	//model = glm::rotate(model, glm::radians(frameNumber * 0.5f), glm::vec3(1.0f, 0.3f, 0.5f));
+	model = glm::scale(model, glm::vec3(0.02, 0.02, 0.02));
 
-	//monkey.mesh = GetMesh("triangle");
-	//monkey.transform = {
-	//	model,
-	//	view,
-	//	projection,
-	//	clip
-	//};
-
-	RenderObject sponza{
-		GetMesh("sponza"),
+	RenderObject object{
+		GetMesh("monkey"),
 		GetMaterial("defaultMesh"),
-		{
-			model,
-			view,
-			projection,
-			clip
-		}
+		model
 	};
 
-	renderables.push_back(sponza);
+	renderables.push_back(object);
+
+	model = glm::mat4(1.0f);
+	model = glm::translate(model, glm::vec3(-10, 0, 0));
+	model = glm::scale(model, glm::vec3(0.02, 0.02, 0.02));
+
+	object = {
+		GetMesh("armadillo"),
+		GetMaterial("color"),
+		model
+	};
+
+	renderables.push_back(object);
+
+	model = glm::mat4(1.0f);
+	model = glm::translate(model, glm::vec3(10, 0, 0));
+	model = glm::scale(model, glm::vec3(0.02, 0.02, 0.02));
+
+	object = {
+		GetMesh("beast"),
+		GetMaterial("color"),
+		model
+	};
+
+	renderables.push_back(object);
 }
 
 void Engine::DrawObjects(const vk::CommandBuffer& cmd, std::vector<RenderObject>& objects) {
 	Mesh* lastMesh = nullptr;
 	Material* lastMaterial = nullptr;
+	view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
 	for (auto& object : objects) {
 		if (object.material != lastMaterial) {
 			cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, object.material->pipeline);
 			lastMaterial = object.material;
 		}
-
-		object.transform.view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
+		
+		MeshPushConstant constant = {
+			object.model,
+			view,
+			projection,
+			clip
+		};
 		//object.transform.model = glm::rotate(object.transform.model, glm::radians((float)(frameNumber % 10)), glm::vec3(1.0f, 0.3f, 0.5f));
 
-		cmd.pushConstants(object.material->pipelineLayout, vk::ShaderStageFlagBits::eVertex, 0, sizeof(MeshPushConstant), &object.transform);
+		cmd.pushConstants(object.material->pipelineLayout, vk::ShaderStageFlagBits::eVertex, 0, sizeof(MeshPushConstant), &constant);
 
 		if (object.mesh != lastMesh) {
 			vk::DeviceSize offset = 0;

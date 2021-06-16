@@ -66,12 +66,12 @@ public:
 		memcpy(data, &object, sizeof(object));
 	}
 
-	const vk::Buffer& GetBuffer() { return buffer; }
-	const vk::BufferView& GetBufferView() { return bufferView; }
-	const vk::MemoryRequirements& GetMemoryRequirements() { return bufferMemoryRequiremenents; }
-	const vk::DeviceMemory& GetDeviceMemory() { return deviceMemory; }
-	const vk::BufferUsageFlagBits& GetBufferUsageFlags() { return flags; }
-	const uint8_t* GetData() { return data; }
+	const vk::Buffer& GetBuffer() const { return buffer; }
+	const vk::BufferView& GetBufferView() const { return bufferView; }
+	const vk::MemoryRequirements& GetMemoryRequirements() const  { return bufferMemoryRequiremenents; }
+	const vk::DeviceMemory& GetDeviceMemory() const  { return deviceMemory; }
+	const vk::BufferUsageFlagBits& GetBufferUsageFlags() const { return flags; }
+	const uint8_t* GetData() const  { return data; }
 
 private:
 	vk::Buffer buffer;

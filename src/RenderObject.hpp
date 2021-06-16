@@ -2,6 +2,8 @@
 
 #include <vulkan/vulkan.hpp>
 
+#include <glm/mat4x4.hpp>
+
 #include <Mesh.hpp>
 
 struct Material {
@@ -12,6 +14,6 @@ struct Material {
 struct RenderObject {
 	Mesh* mesh = nullptr;
 	Material* material = nullptr;
-	MeshPushConstant transform;
+	glm::mat4x4 model;
 };
 
