@@ -71,7 +71,7 @@ public:
 	const vk::MemoryRequirements& GetMemoryRequirements() const  { return bufferMemoryRequiremenents; }
 	const vk::DeviceMemory& GetDeviceMemory() const  { return deviceMemory; }
 	const vk::BufferUsageFlagBits& GetBufferUsageFlags() const { return flags; }
-	const uint8_t* GetData() const  { return data; }
+	uint8_t* GetData() const  { return data; }
 
 private:
 	vk::Buffer buffer;

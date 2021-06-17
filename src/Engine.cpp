@@ -1,10 +1,12 @@
 #include <Engine.hpp>
 
+#define STB_IMAGE_IMPLEMENTATION
+#include <stb/stb_image.h>
+
 Engine::Engine() {
 	cameraPos = glm::vec3(0.0f, 0.0f, 0.0f);
 	cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
 	cameraUp = glm::vec3(0.0f, -1.0f, 0.0f);
-	model = glm::mat4x4(1.0f);
 	camera = {
 		glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp),
 		glm::perspective(glm::radians(45.0f), 1024.0f / 768, 0.1f, 10000.0f),
@@ -31,8 +33,10 @@ void Engine::Init() {
 	InitSyncStructures();
 	InitDescriptors();
 	InitPipelines();
+	LoadImages();
 	LoadMeshes();
 	InitScene();
+	//InitImGui();
 }
 
 void Engine::Run() {
@@ -64,6 +68,7 @@ void Engine::Run() {
 
 
 		while (window->PollEvents(&event)) {
+			//ImGui_ImplSDL2_ProcessEvent(&event);
 			cameraSpeed = 2.5f * deltaTime;
 			printf("speed: %f\n", cameraSpeed);
 			if (event.type == SDL_QUIT)
@@ -99,6 +104,7 @@ void Engine::Run() {
 			}
 
 			if (isCaptureMouse) {
+
 				SDL_GetMouseState(&xpos, &ypos);
 				if (firstMouse) {
 					lastX = xpos;
@@ -130,6 +136,10 @@ void Engine::Run() {
 				cameraFront = glm::normalize(direction);
 			}
 		}
+		//ImGui_ImplVulkan_NewFrame();
+		//ImGui_ImplSDL2_NewFrame(window->GetWindow());
+		//ImGui::NewFrame();
+		//ImGui::ShowDemoWindow();
 
 		Draw();
 	}
@@ -148,6 +158,9 @@ void Engine::CleanUp() {
 		vulkanBase.GetDevice().destroyBuffer(frames[i].cameraBuffer.GetBuffer());
 		vulkanBase.GetDevice().freeDescriptorSets(descriptorPool, frames[i].globalDescriptor);
 	}
+
+	vulkanBase.GetDevice().destroyDescriptorPool(imguiPool);
+	ImGui_ImplVulkan_Shutdown();
 
 	vulkanBase.GetDevice().destroyDescriptorSetLayout(globalSetLayout);
 	vulkanBase.GetDevice().destroyDescriptorPool(descriptorPool);
@@ -219,8 +232,8 @@ void Engine::InitSyncStructures() {
 
 void Engine::InitPipelines() {
 
-	vk::ShaderModule cubeVertexShaderModule = utils::loadShaderModule("../shaders/cube.vert.spv", vulkanBase.GetDevice());
-	vk::ShaderModule cubeFragmentShaderModule = utils::loadShaderModule("../shaders/cube.frag.spv", vulkanBase.GetDevice());
+	vk::ShaderModule vertexShaderModule = utils::loadShaderModule("../shaders/cube.vert.spv", vulkanBase.GetDevice());
+	vk::ShaderModule fragmentShaderModule = utils::loadShaderModule("../shaders/cube.frag.spv", vulkanBase.GetDevice());
 
 	vk::PushConstantRange pushConstant(
 		vk::ShaderStageFlagBits::eVertex,
@@ -248,13 +261,13 @@ void Engine::InitPipelines() {
 	pipelineBuilder.shaderStages.push_back(
 		utils::pipelineShaderStageCreateInfo(
 			vk::ShaderStageFlagBits::eVertex,
-			cubeVertexShaderModule
+			vertexShaderModule
 		)
 	);
 	pipelineBuilder.shaderStages.push_back(
 		utils::pipelineShaderStageCreateInfo(
 			vk::ShaderStageFlagBits::eFragment,
-			cubeFragmentShaderModule
+			fragmentShaderModule
 		)
 	);
 
@@ -277,11 +290,12 @@ void Engine::InitPipelines() {
 
 	CreateMaterial(meshPipeline, meshPipelineLayout, "defaultMesh");
 
-	vulkanBase.GetDevice().destroyShaderModule(cubeVertexShaderModule);
-	vulkanBase.GetDevice().destroyShaderModule(cubeFragmentShaderModule);
+	vulkanBase.GetDevice().destroyShaderModule(vertexShaderModule);
+	vulkanBase.GetDevice().destroyShaderModule(fragmentShaderModule);
 }
 
 void Engine::Draw() {
+	//ImGui::Render();
 	vulkanBase.GetDevice().waitForFences(GetCurrentFrame().renderFence, true, 1000000000);
 	vulkanBase.GetDevice().resetFences(GetCurrentFrame().renderFence);
 	GetCurrentFrame().commandBuffer.reset();
@@ -294,7 +308,7 @@ void Engine::Draw() {
 		);
 
 	vk::CommandBuffer cmd = GetCurrentFrame().commandBuffer;
-
+	
 	cmd.begin(vk::CommandBufferBeginInfo(vk::CommandBufferUsageFlags()));
 
 	std::array<vk::ClearValue, 2> clearValues;
@@ -334,6 +348,7 @@ void Engine::Draw() {
 
 	DrawObjects(cmd, renderables);
 
+	//ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
 	cmd.endRenderPass();
 	cmd.end();
 
@@ -382,19 +397,24 @@ void Engine::InitScene() {
 	camera.view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
 	camera.projection = glm::perspective(glm::radians(45.0f), (float)swapchain.GetExtent().width / swapchain.GetExtent().height, 0.1f, 10000.0f);
 
-	model = glm::translate(model, glm::vec3(0, 0, 0));
-	model = glm::scale(model, glm::vec3(0.001, 0.001, 0.001));
-
 	RenderObject sponza{
 		GetMesh("sponza"),
 		GetMaterial("defaultMesh"),
-		model
+		glm::translate(glm::scale(glm::mat4{1.0f}, glm::vec3(0.001, 0.001, 0.001)), glm::vec3(0, 0, 0))
 	};
 
 	renderables.push_back(sponza);
 }
 
 void Engine::DrawObjects(const vk::CommandBuffer& cmd, std::vector<RenderObject>& objects) {
+	float framed = frameNumber / 60.0f;
+	sceneParameters.ambientColor = { 0.3f, 0.3f, 0.3f, 1 };
+	sceneParametersBuffer.MapBuffer(vulkanBase.GetDevice());
+	int32_t frameIndex = frameNumber % FRAME_OVERLAP;
+	*sceneParametersBuffer.GetData() += PadUnifopmBufferSize(sizeof(Scene)) * frameIndex;
+	sceneParametersBuffer.MemoryCopy(sceneParameters);
+	sceneParametersBuffer.UnMapBuffer(vulkanBase.GetDevice());
+
 	Mesh* lastMesh = nullptr;
 	Material* lastMaterial = nullptr;
 	camera.view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
@@ -404,12 +424,14 @@ void Engine::DrawObjects(const vk::CommandBuffer& cmd, std::vector<RenderObject>
 			cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, object.material->pipeline);
 			lastMaterial = object.material;
 
+			uint32_t uniformOffset = PadUnifopmBufferSize(sizeof(Scene)) * frameIndex;
+
 			cmd.bindDescriptorSets(
 				vk::PipelineBindPoint::eGraphics,
 				object.material->pipelineLayout,
 				0,
 				GetCurrentFrame().globalDescriptor,
-				{}
+				uniformOffset
 			);
 		}
 
@@ -428,7 +450,8 @@ void Engine::DrawObjects(const vk::CommandBuffer& cmd, std::vector<RenderObject>
 void Engine::InitDescriptors() {
 
 	std::vector<vk::DescriptorPoolSize> sizes{
-		{vk::DescriptorType::eUniformBuffer, 10}
+		{vk::DescriptorType::eUniformBuffer, 10}, 
+		{vk::DescriptorType::eUniformBufferDynamic, 10}
 	};
 
 	descriptorPool = vulkanBase.GetDevice().createDescriptorPool(
@@ -439,20 +462,28 @@ void Engine::InitDescriptors() {
 		)
 	);
 
-	vk::DescriptorSetLayoutBinding cameraBufferBinding(
-		0, // binding
-		vk::DescriptorType::eUniformBuffer,
-		1, // descriptor count
-		vk::ShaderStageFlagBits::eVertex
-	);
+	vk::DescriptorSetLayoutBinding cameraBind = utils::descriptorsetLayoutBinding(vk::DescriptorType::eUniformBuffer,
+		vk::ShaderStageFlagBits::eVertex, 0);
+
+	vk::DescriptorSetLayoutBinding sceneBind = utils::descriptorsetLayoutBinding(vk::DescriptorType::eUniformBufferDynamic,
+		vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment, 1);
+
+	std::vector<vk::DescriptorSetLayoutBinding> bindings{
+		cameraBind,
+		sceneBind
+	};
 
 	globalSetLayout = vulkanBase.GetDevice().createDescriptorSetLayout(
 		vk::DescriptorSetLayoutCreateInfo(
 			vk::DescriptorSetLayoutCreateFlags(),
-			1,
-			&cameraBufferBinding
+			bindings
 		)
 	);
+
+	size_t sceneParametersBufferSize = FRAME_OVERLAP * PadUnifopmBufferSize(sizeof(Scene));
+	sceneParametersBuffer.Init<Scene>(vulkanBase.GetPhysicalDevice(), vulkanBase.GetDevice(),
+		vk::BufferUsageFlagBits::eUniformBuffer, sceneParametersBufferSize);
+	sceneParametersBuffer.BindBuffer(vulkanBase.GetDevice());
 
 	for (uint32_t i = 0; i < FRAME_OVERLAP; ++i) {
 		frames[i].cameraBuffer.Init<Camera>(vulkanBase.GetPhysicalDevice(), vulkanBase.GetDevice(),
@@ -466,24 +497,29 @@ void Engine::InitDescriptors() {
 			)
 		).front();
 
-		vk::DescriptorBufferInfo bufferInfo(
+		vk::DescriptorBufferInfo cameraInfo(
 			frames[i].cameraBuffer.GetBuffer(),
 			0,
 			sizeof(Camera)
 		);
 
-		vulkanBase.GetDevice().updateDescriptorSets(
-			vk::WriteDescriptorSet(
-				frames[i].globalDescriptor,
-				0,
-				{},
-				vk::DescriptorType::eUniformBuffer,
-				{},
-				bufferInfo,
-				{}
-			),
-			{}
+		vk::DescriptorBufferInfo sceneInfo(
+			sceneParametersBuffer.GetBuffer(),
+			PadUnifopmBufferSize(sizeof(Scene)) * i,
+			sizeof(Scene)
 		);
+
+		vk::WriteDescriptorSet cameraWrite = utils::writeDescriptorSet(vk::DescriptorType::eUniformBuffer, 
+			frames[i].globalDescriptor, cameraInfo, 0);
+		vk::WriteDescriptorSet sceneWrite = utils::writeDescriptorSet(vk::DescriptorType::eUniformBufferDynamic,
+			frames[i].globalDescriptor, sceneInfo, 1);
+
+		std::vector<vk::WriteDescriptorSet> setWrites{
+			cameraWrite,
+			sceneWrite
+		};
+
+		vulkanBase.GetDevice().updateDescriptorSets(setWrites, {});
 	}
 }
 
@@ -495,6 +531,54 @@ const Material* Engine::CreateMaterial(const vk::Pipeline& pipeline,
 	};
 	materials[name] = mat;
 	return &materials.at(name);
+}
+
+void Engine::InitImGui() {
+	std::vector<vk::DescriptorPoolSize> sizes{
+		{vk::DescriptorType::eSampler, 1000},
+		{vk::DescriptorType::eCombinedImageSampler, 1000},
+		{vk::DescriptorType::eSampledImage, 1000},
+		{vk::DescriptorType::eStorageImage, 1000},
+		{vk::DescriptorType::eUniformTexelBuffer, 1000},
+		{vk::DescriptorType::eStorageTexelBuffer, 1000},
+		{vk::DescriptorType::eUniformBuffer, 1000},
+		{vk::DescriptorType::eStorageBuffer, 1000},
+		{vk::DescriptorType::eUniformBufferDynamic, 1000},
+		{vk::DescriptorType::eStorageBufferDynamic, 1000},
+		{vk::DescriptorType::eInputAttachment, 1000}
+	};
+
+	imguiPool = vulkanBase.GetDevice().createDescriptorPool(
+		vk::DescriptorPoolCreateInfo(
+			vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet,
+			1000,
+			sizes
+		)
+	);
+
+	ImGui::CreateContext();
+	ImGui_ImplSDL2_InitForVulkan(window->GetWindow());
+	ImGui_ImplVulkan_InitInfo initInfo = {
+		vulkanBase.GetInstance(),
+		vulkanBase.GetPhysicalDevice(),
+		vulkanBase.GetDevice(),
+		vulkanBase.GetQueues().graphicsQueueIndex,
+		vulkanBase.GetQueues().graphicsQueue,
+		{},
+		imguiPool,
+		{},
+		3, 3,
+		(VkSampleCountFlagBits)vk::SampleCountFlagBits::e1
+	};
+
+	ImGui_ImplVulkan_Init(&initInfo, renderPass.GetRenderPass());
+	
+	ImmediateSubmit([&](vk::CommandBuffer cmd) {
+		ImGui_ImplVulkan_CreateFontsTexture(cmd);
+	});
+
+
+	ImGui_ImplVulkan_DestroyFontUploadObjects();
 }
 
 Material* Engine::GetMaterial(const std::string& name) {
@@ -509,5 +593,143 @@ Mesh* Engine::GetMesh(const std::string& name) {
 	if (iter == meshes.end())
 		return nullptr;
 	return &(*iter).second;
+}
+
+bool Engine::LoadImageFromFile(const char* file, Image& image) {
+	int texWidth, texHeight, texChannels;
+
+	stbi_uc* pixels = stbi_load(file, &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+
+	if (!pixels) {
+		printf("Failed to load texture file %s\n", file);
+		return false;
+	}
+
+	void* pixel_ptr = pixels;
+	vk::DeviceSize imageSize = texWidth * texHeight * 4;
+
+	vk::Format image_format = vk::Format::eR8G8B8A8Srgb;
+
+	Buffer stagingBuffer;
+	stagingBuffer.Init<void*>(vulkanBase.GetPhysicalDevice(), vulkanBase.GetDevice(), vk::BufferUsageFlagBits::eTransferSrc, imageSize);
+	stagingBuffer.CopyBuffer(vulkanBase.GetDevice(), pixel_ptr);
+	stagingBuffer.BindBuffer(vulkanBase.GetDevice());
+
+	stbi_image_free(pixels);
+
+	vk::Extent3D imageExtent{
+		static_cast<uint32_t>(texWidth),
+		static_cast<uint32_t>(texHeight),
+		1
+	};
+
+	Image newImage(imageExtent);
+	vk::ImageUsageFlags flags = vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferDst;
+	newImage.SetFlags(flags);
+	newImage.Init(vulkanBase, image_format);
+
+
+	//transition image to transfer-receiver	
+	ImmediateSubmit([&](vk::CommandBuffer cmd) {
+		vk::ImageSubresourceRange range;
+		range.aspectMask = vk::ImageAspectFlagBits::eColor;
+		range.baseMipLevel = 0;
+		range.levelCount = 1;
+		range.baseArrayLayer = 0;
+		range.layerCount = 1;
+
+		vk::ImageMemoryBarrier imageBarrier_toTransfer = {};
+		imageBarrier_toTransfer.oldLayout = vk::ImageLayout::eUndefined;
+		imageBarrier_toTransfer.newLayout = vk::ImageLayout::eTransferDstOptimal;
+		imageBarrier_toTransfer.image = newImage.GetImage();
+		imageBarrier_toTransfer.subresourceRange = range;
+		imageBarrier_toTransfer.dstAccessMask = vk::AccessFlagBits::eTransferWrite;
+
+		//barrier the image into the transfer-receive layout
+		cmd.pipelineBarrier(vk::PipelineStageFlagBits::eTopOfPipe, vk::PipelineStageFlagBits::eTransfer, {}, {}, {}, imageBarrier_toTransfer);
+
+		vk::BufferImageCopy copyRegion = {};
+		copyRegion.bufferOffset = 0;
+		copyRegion.bufferRowLength = 0;
+		copyRegion.bufferImageHeight = 0;
+
+		copyRegion.imageSubresource.aspectMask = vk::ImageAspectFlagBits::eColor;
+		copyRegion.imageSubresource.mipLevel = 0;
+		copyRegion.imageSubresource.baseArrayLayer = 0;
+		copyRegion.imageSubresource.layerCount = 1;
+		copyRegion.imageExtent = imageExtent;
+
+		//copy the buffer into the image
+		cmd.copyBufferToImage(stagingBuffer.GetBuffer(), newImage.GetImage(), vk::ImageLayout::eTransferDstOptimal, copyRegion);
+		
+		vk::ImageMemoryBarrier imageBarrier_toReadable = imageBarrier_toTransfer;
+
+		imageBarrier_toReadable.oldLayout = vk::ImageLayout::eTransferDstOptimal;
+		imageBarrier_toReadable.newLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
+
+		imageBarrier_toReadable.srcAccessMask = vk::AccessFlagBits::eTransferWrite;
+		imageBarrier_toReadable.dstAccessMask = vk::AccessFlagBits::eShaderRead;
+
+		//barrier the image into the shader readable layout
+		cmd.pipelineBarrier(vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eFragmentShader, {}, {}, {}, imageBarrier_toReadable);
+	});
+
+	printf("Texture loaded succesfully %s\n",file);
+
+	image = newImage;
+	return true;
+}
+
+void Engine::LoadImages() {
+	Texture sponza;
+
+	LoadImageFromFile("../assets/lion.tga", sponza.image);
+
+	loadedTextures["sponzaLion"] = sponza;
+}
+
+void Engine::ImmediateSubmit(std::function<void(vk::CommandBuffer cmd)>&& function) {
+	vk::CommandBuffer cmd = vulkanBase.GetDevice().allocateCommandBuffers(
+		vk::CommandBufferAllocateInfo(
+			uploadContext.commandPool,
+			{},
+			1
+		)
+	).front();
+
+	cmd.begin(
+		vk::CommandBufferBeginInfo(
+			vk::CommandBufferUsageFlagBits::eOneTimeSubmit
+		)
+	);
+
+	function(cmd);
+
+	cmd.end();
+
+	vk::SubmitInfo submitInfo(
+		{},
+		{},
+		cmd,
+		{}
+	);
+
+	vulkanBase.GetQueues().graphicsQueue.submit(submitInfo, uploadContext.uploadFence);
+
+	vulkanBase.GetDevice().waitForFences(uploadContext.uploadFence, true, 9999999999);
+	vulkanBase.GetDevice().resetFences(uploadContext.uploadFence);
+
+	vulkanBase.GetDevice().resetCommandPool(uploadContext.commandPool);
+
+}
+
+size_t Engine::PadUnifopmBufferSize(size_t originalSize) {
+	// Calculate required alignment based on minimum device offset alignment
+	size_t minUboAlignment = vulkanBase.GetPhysicalDevice().getProperties().limits.minUniformBufferOffsetAlignment;
+	size_t alignedSize = originalSize;
+	if (minUboAlignment > 0) {
+		alignedSize = (alignedSize + minUboAlignment - 1) & ~(minUboAlignment - 1);
+	}
+	return alignedSize;
 }
 

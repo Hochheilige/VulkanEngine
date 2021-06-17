@@ -106,7 +106,6 @@ void Swapchain::Init(const VulkanBase& base) {
 	swapchain = base.GetDevice().createSwapchainKHR(swapchainInfo);
 
 	images = base.GetDevice().getSwapchainImagesKHR(swapchain);
-	imageViews;
 	imageViews.reserve(images.size());
 
 	// TODO: read about componentMapping and ImageSubresourceRange

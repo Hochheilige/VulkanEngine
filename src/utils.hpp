@@ -6,7 +6,7 @@
 #include <fstream>
 
 namespace utils {
-	uint32_t findMemoryType(vk::PhysicalDeviceMemoryProperties const& memoryProperties, uint32_t typeBits, vk::MemoryPropertyFlags requirementsMask);
+	uint32_t findMemoryType(const vk::PhysicalDeviceMemoryProperties& memoryProperties, const uint32_t typeBits, vk::MemoryPropertyFlags requirementsMask);
 
 	vk::PipelineShaderStageCreateInfo pipelineShaderStageCreateInfo(vk::ShaderStageFlagBits stage, const vk::ShaderModule& shaderModule);
 
@@ -24,7 +24,10 @@ namespace utils {
 
 	vk::PipelineDepthStencilStateCreateInfo depthStencilCreateInfo(bool isDepthTest, bool isDepthWrite, vk::CompareOp compareOp);
 
-	vk::DescriptorSetLayoutBinding descriptorsetLayoutBinding(vk::DescriptorType type, vk::ShaderStageFlags stageFlags, uint32_t binding);
+	vk::DescriptorSetLayoutBinding descriptorsetLayoutBinding(vk::DescriptorType type, vk::ShaderStageFlags stageFlags, const uint32_t binding);
+
+	vk::WriteDescriptorSet writeDescriptorSet(vk::DescriptorType type, const vk::DescriptorSet& dstSet,
+		const vk::DescriptorBufferInfo& bufferInfo, uint32_t binding);
 
 	vk::ShaderModule loadShaderModule(const char* filePath, const vk::Device& device);
 }

@@ -1,5 +1,6 @@
 #include <utils.hpp>
 
+
 namespace utils {
 
 	uint32_t findMemoryType(vk::PhysicalDeviceMemoryProperties const& memoryProperties, uint32_t typeBits, vk::MemoryPropertyFlags requirementsMask) {
@@ -117,9 +118,17 @@ namespace utils {
 	vk::DescriptorSetLayoutBinding descriptorsetLayoutBinding(vk::DescriptorType type, vk::ShaderStageFlags stageFlags, uint32_t binding) {
 		return vk::DescriptorSetLayoutBinding(
 			binding,
-			type, 
-			stageFlags,
-			{}
+			type,
+			1,
+			stageFlags
+		);
+	}
+
+	vk::WriteDescriptorSet writeDescriptorSet(vk::DescriptorType type, const vk::DescriptorSet& dstSet, 
+		const vk::DescriptorBufferInfo& bufferInfo, uint32_t binding) {
+		return vk::WriteDescriptorSet(
+			dstSet, binding, {}, type, {},
+			bufferInfo
 		);
 	}
 

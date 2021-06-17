@@ -8,12 +8,13 @@ add_executable(${PROJECT_NAME}
     VulkanBase.cpp
     Swapchain.hpp
     Swapchain.cpp
- "Image.hpp" "Image.cpp" "Buffer.hpp" "Buffer.cpp" "utils.cpp" "utils.hpp" "Resource.hpp" "Resource.cpp" "DescriptorSet.hpp" "DescriptorSet.cpp" "Framebuffer.hpp" "Framebuffer.cpp" "RenderPass.hpp" "RenderPass.cpp" "PipelineBuilder.hpp" "PipelineBuilder.cpp" "Mesh.hpp" "Mesh.cpp" "FrameData.hpp" "Vertex.hpp" "Vertex.cpp" "RenderObject.hpp" "Camera.hpp")
+ "Image.hpp" "Image.cpp" "Buffer.hpp" "Buffer.cpp" "utils.cpp" "utils.hpp" "Resource.hpp" "Resource.cpp" "DescriptorSet.hpp" "DescriptorSet.cpp" "Framebuffer.hpp" "Framebuffer.cpp" "RenderPass.hpp" "RenderPass.cpp" "PipelineBuilder.hpp" "PipelineBuilder.cpp" "Mesh.hpp" "Mesh.cpp" "FrameData.hpp" "Vertex.hpp" "Vertex.cpp" "RenderObject.hpp" "Camera.hpp" "Scene.hpp" "Texture.hpp")
 
 set_property(TARGET ${PROJECT_NAME} PROPERTY VS_DEBUGGER_WORKING_DIRECTORY "$<TARGET_FILE_DIR:${PROJECT_NAME}")
 
 target_include_directories(${PROJECT_NAME} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
-target_link_libraries(${PROJECT_NAME} vkbootstrap vma glm tinyobjloader imgui stb_image)
+target_include_directories(${PROJECT_NAME} PUBLIC "${CMAKE_SOURCE_DIR}/libraries")
+target_link_libraries(${PROJECT_NAME} vkbootstrap vma glm tinyobjloader imgui_static stb_image)
 target_link_libraries(${PROJECT_NAME} Vulkan::Vulkan sdl2)
 add_dependencies(${PROJECT_NAME} Shaders)
 

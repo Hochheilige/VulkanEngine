@@ -9,11 +9,11 @@
 
 struct Queues {
 	vk::Queue graphicsQueue;
-	uint32_t graphicsQueueIndex;
+	uint32_t graphicsQueueIndex = 0;
 	vk::Queue presentQueue;
-	uint32_t presentQueueIndex;
+	uint32_t presentQueueIndex = 0;
 	vk::Queue computeQueue;
-	uint32_t computeQueueIndex;
+	uint32_t computeQueueIndex = 0;
 };
 
 class VulkanBase {

@@ -5,6 +5,10 @@
 #define GLM_FORCE_RADIANS
 #include <glm/gtc/matrix_transform.hpp>
 
+#include <imgui/imgui.h>
+#include <imgui/backends/imgui_impl_vulkan.h>
+#include <imgui/backends/imgui_impl_sdl.h>
+
 #include <vector>
 #include <unordered_map>
 
@@ -20,9 +24,11 @@
 #include <Mesh.hpp>
 #include <RenderObject.hpp>
 #include <Camera.hpp>
+#include <Scene.hpp>
+#include <Texture.hpp>
 #include <utils.hpp>
 
-constexpr uint32_t FRAME_OVERLAP = 3;
+constexpr uint32_t FRAME_OVERLAP = 1;
 
 struct UploadContext {
 	vk::Fence uploadFence;
@@ -50,6 +56,7 @@ private:
 
 	vk::DescriptorSetLayout globalSetLayout;
 	vk::DescriptorPool descriptorPool;
+	vk::DescriptorPool imguiPool;
 
 	vk::PipelineLayout meshPipelineLayout;
 	vk::Pipeline meshPipeline;
@@ -64,19 +71,23 @@ private:
 	std::vector<RenderObject> renderables;
 	std::unordered_map<std::string, Material> materials;
 	std::unordered_map<std::string, Mesh> meshes;
+	std::unordered_map<std::string, Texture> loadedTextures;
 
 	glm::vec3 cameraPos;
 	glm::vec3 cameraFront;
 	glm::vec3 cameraUp;
 	Camera camera;
 
-	glm::mat4x4 model;
+	Scene sceneParameters;
+	Buffer sceneParametersBuffer;
+
 
 	void InitCommands();
 	void InitSyncStructures();
 	void InitPipelines();
 	void InitScene();
 	void InitDescriptors();
+	void InitImGui();
 
 	void Draw();
 	void DrawObjects(const vk::CommandBuffer& cmd, std::vector<RenderObject>& objects);
@@ -84,8 +95,13 @@ private:
 	void LoadMeshes();
 	void UploadMeshes(Mesh& mesh);
 
+	bool LoadImageFromFile(const char* file, Image& image);
+	void LoadImages();
+
 	FrameData& GetCurrentFrame() { return frames.at(frameNumber % FRAME_OVERLAP); }
 	const Material* CreateMaterial(const vk::Pipeline& pipeline, const vk::PipelineLayout& pipelineLayout, const std::string& name);
 	Material* GetMaterial(const std::string& name);
 	Mesh* GetMesh(const std::string& name);
+	size_t PadUnifopmBufferSize(size_t originalSize);
+	void ImmediateSubmit(std::function<void(vk::CommandBuffer cmd)>&& function);
 };

@@ -1,8 +1,11 @@
 #include "Image.hpp"
 
-Image::Image(const vk::PhysicalDevice gpu, vk::Format format)
-: Resource(gpu), format(format) {
+Image::Image(const vk::PhysicalDevice gpu, vk::ImageUsageFlags fl, vk::Format format)
+	: Resource(gpu), format(format), flags(fl) {
 	formatProperties = gpu.getFormatProperties(format);
+}
+
+Image::Image(const vk::Extent3D ex) : extent(ex) {
 }
 
 Image::~Image() {
@@ -12,13 +15,16 @@ void Image::InitResource(const vk::PhysicalDevice& gpu) {
 	memoryProperties = gpu.getMemoryProperties();
 }
 
-void Image::Init(const VulkanBase& base, vk::Format format, vk::ImageAspectFlagBits flags, bool isDepth) {
+void Image::Init(const VulkanBase& base, vk::Format format, vk::ImageAspectFlagBits fl, bool isDepth) {
+	if (extent.height == 0 && extent.width == 0) {
+		extent = vk::Extent3D(base.GetSurfaceCapabilities().currentExtent, 1);
+	}
 
 	vk::ImageCreateInfo imageInfo(
 		vk::ImageCreateFlags(),
 		vk::ImageType::e2D,
 		format,
-		vk::Extent3D(base.GetSurfaceCapabilities().currentExtent, 1),
+		extent,
 		1, 1,
 		vk::SampleCountFlagBits::e1,
 		{},
@@ -31,10 +37,11 @@ void Image::Init(const VulkanBase& base, vk::Format format, vk::ImageAspectFlagB
 	}
 
 	vk::ImageTiling tiling;
+	vk::ImageSubresourceRange subResourceRange;
 	if (isDepth) {
 		// This is need only for depth image and this should be clear
 		// TODO: tiling??????
-		
+
 		if (formatProperties.linearTilingFeatures & vk::FormatFeatureFlagBits::eDepthStencilAttachment) {
 			tiling = vk::ImageTiling::eLinear;
 		}
@@ -47,6 +54,11 @@ void Image::Init(const VulkanBase& base, vk::Format format, vk::ImageAspectFlagB
 
 		imageInfo.setTiling(tiling);
 		imageInfo.setUsage(vk::ImageUsageFlagBits::eDepthStencilAttachment);
+		subResourceRange = { fl, 0, 1, 0, 1 };
+	}
+	else {
+		imageInfo.setUsage(flags);
+		subResourceRange = { vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1 };
 	}
 
 	image = base.GetDevice().createImage(imageInfo);
@@ -61,7 +73,7 @@ void Image::Init(const VulkanBase& base, vk::Format format, vk::ImageAspectFlagB
 	base.GetDevice().bindImageMemory(image, deviceMemory, 0);
 
 	// TODO: what is component mapping and subresource range (2)
-	vk::ImageSubresourceRange subResourceRange(flags, 0, 1, 0, 1);
+
 
 	// TODO: read about componentMapping and ImageSubresourceRange
 	vk::ComponentMapping componentMapping(
@@ -84,6 +96,10 @@ void Image::Init(const VulkanBase& base, vk::Format format, vk::ImageAspectFlagB
 }
 
 void Image::SetFormat(const vk::PhysicalDevice& gpu, vk::Format f) {
-	format = f; 
+	format = f;
 	formatProperties = gpu.getFormatProperties(format);
+}
+
+void Image::SetFlags(vk::ImageUsageFlags fl) {
+	flags = fl;
 }

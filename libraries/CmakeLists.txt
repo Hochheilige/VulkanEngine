@@ -39,22 +39,41 @@ endif()
 
 target_link_libraries(sdl2 INTERFACE SDL2 SDL2main)
 
-add_library(imgui STATIC)
+set(ROOT ${CMAKE_CURRENT_SOURCE_DIR}/imgui)
+message("${ROOT}")
+set(IMGUI_PUBLIC_HEADERS ${ROOT}/imgui.h)
+set(IMGUI_PRIVATE_HEADERS
+    ${ROOT}/imgui_internal.h ${ROOT}/imconfig.h ${ROOT}/imstb_rectpack.h
+    ${ROOT}/imstb_textedit.h ${ROOT}/imstb_truetype.h)
+set(IMGUI_SOURCES ${ROOT}/imgui.cpp ${ROOT}/imgui_draw.cpp
+                  ${ROOT}/imgui_widgets.cpp ${ROOT}/imgui_demo.cpp ${ROOT}/imgui_tables.cpp
+                  ${ROOT}/backends/imgui_impl_vulkan.cpp
+                  ${ROOT}/backends/imgui_impl_sdl.cpp)
 
-target_include_directories(imgui PUBLIC imgui)
+add_library(imgui_static STATIC ${IMGUI_SOURCES} ${IMGUI_PUBLIC_HEADERS}
+                                ${IMGUI_PRIVATE_HEADERS})
 
-target_sources(imgui PRIVATE 
-    imgui/imgui.h
-    imgui/imgui.cpp
+target_include_directories(imgui_static PUBLIC ${ROOT})
+target_link_libraries(imgui_static PUBLIC Vulkan::Vulkan sdl2)
 
-    imgui/imgui_demo.cpp
-    imgui/imgui_draw.cpp
-    imgui/imgui_widgets.cpp
+#add_library(imgui STATIC)
+#
+#target_include_directories(imgui PUBLIC imgui)
+#
+#target_sources(imgui PRIVATE
+#"${CMAKE_CURRENT_SOURCE_DIR}/imgui/imgui.h"
+#"${CMAKE_CURRENT_SOURCE_DIR}/imgui/imgui.cpp"
+#
+#"${CMAKE_CURRENT_SOURCE_DIR}/imgui/imgui_demo.cpp"
+#"${CMAKE_CURRENT_SOURCE_DIR}/imgui/imgui_draw.cpp"
+#"${CMAKE_CURRENT_SOURCE_DIR}/imgui/imgui_widgets.cpp"
+#
+#"${CMAKE_CURRENT_SOURCE_DIR}/imgui/backends/imgui_impl_vulkan.cpp"
+#"${CMAKE_CURRENT_SOURCE_DIR}/imgui/backends/imgui_impl_sdl.cpp"
+#)
 
-    imgui/backends/imgui_impl_vulkan.cpp
-    imgui/backends/imgui_impl_sdl.cpp
-)
 
-target_link_libraries(imgui PUBLIC Vulkan::Vulkan sdl2)
+
 
 target_include_directories(stb_image INTERFACE stb_image)
+
