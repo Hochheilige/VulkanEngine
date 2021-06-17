@@ -1,18 +1,20 @@
 #include <Engine.hpp>
 
 Engine::Engine() {
-	cameraPos = glm::vec3(0.0f, 10.0f, 0.0f);
+	cameraPos = glm::vec3(0.0f, 0.0f, 0.0f);
 	cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
 	cameraUp = glm::vec3(0.0f, -1.0f, 0.0f);
 	model = glm::mat4x4(1.0f);
-	view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
-	projection = glm::perspective(glm::radians(45.0f), 1024.0f / 768, 0.1f, 10000.0f);
-	clip = glm::mat4x4(
-		1.0f, 0.0f, 0.0f, 0.0f,
-		0.0f, -1.0f, 0.0f, 0.0f,
-		0.0f, 0.0f, 0.5f, 0.0f,
-		0.0f, 0.0f, 0.5f, 1.0f
-	);
+	camera = {
+		glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp),
+		glm::perspective(glm::radians(45.0f), 1024.0f / 768, 0.1f, 10000.0f),
+		glm::mat4x4(
+			1.0f, 0.0f, 0.0f, 0.0f,
+			0.0f, -1.0f, 0.0f, 0.0f,
+			0.0f, 0.0f, 0.5f, 0.0f,
+			0.0f, 0.0f, 0.5f, 1.0f
+		)
+	};
 }
 
 Engine::~Engine() {
@@ -27,6 +29,7 @@ void Engine::Init() {
 	framebuffer.Create(vulkanBase.GetDevice(), renderPass.GetRenderPass(), swapchain, depthImage.GetImageView());
 	InitCommands();
 	InitSyncStructures();
+	InitDescriptors();
 	InitPipelines();
 	LoadMeshes();
 	InitScene();
@@ -81,6 +84,8 @@ void Engine::Run() {
 						isCaptureMouse = true;
 					}
 				}
+
+	
 
 
 				if (event.key.keysym.sym == SDLK_w)
@@ -139,7 +144,13 @@ void Engine::CleanUp() {
 		vulkanBase.GetDevice().destroySemaphore(frames[i].presentSemaphore);
 		vulkanBase.GetDevice().freeCommandBuffers(frames[i].commandPool, frames[i].commandBuffer);
 		vulkanBase.GetDevice().destroyCommandPool(frames[i].commandPool);
+		vulkanBase.GetDevice().freeMemory(frames[i].cameraBuffer.GetDeviceMemory());
+		vulkanBase.GetDevice().destroyBuffer(frames[i].cameraBuffer.GetBuffer());
+		vulkanBase.GetDevice().freeDescriptorSets(descriptorPool, frames[i].globalDescriptor);
 	}
+
+	vulkanBase.GetDevice().destroyDescriptorSetLayout(globalSetLayout);
+	vulkanBase.GetDevice().destroyDescriptorPool(descriptorPool);
 
 	vulkanBase.GetDevice().destroyFence(uploadContext.uploadFence);
 	vulkanBase.GetDevice().destroyCommandPool(uploadContext.commandPool);
@@ -148,7 +159,6 @@ void Engine::CleanUp() {
 		vulkanBase.GetDevice().freeMemory(meshBuffer.buffer.GetDeviceMemory());
 		vulkanBase.GetDevice().destroyBuffer(meshBuffer.buffer.GetBuffer());
 	}
-
 
 	vulkanBase.GetDevice().destroyPipelineLayout(meshPipelineLayout);
 	vulkanBase.GetDevice().destroyPipeline(meshPipeline);
@@ -211,7 +221,6 @@ void Engine::InitPipelines() {
 
 	vk::ShaderModule cubeVertexShaderModule = utils::loadShaderModule("../shaders/cube.vert.spv", vulkanBase.GetDevice());
 	vk::ShaderModule cubeFragmentShaderModule = utils::loadShaderModule("../shaders/cube.frag.spv", vulkanBase.GetDevice());
-	vk::ShaderModule meshFragmentShaderModule = utils::loadShaderModule("../shaders/meshColored.frag.spv", vulkanBase.GetDevice());
 
 	vk::PushConstantRange pushConstant(
 		vk::ShaderStageFlagBits::eVertex,
@@ -222,7 +231,7 @@ void Engine::InitPipelines() {
 	meshPipelineLayout = vulkanBase.GetDevice().createPipelineLayout(
 		vk::PipelineLayoutCreateInfo(
 			vk::PipelineLayoutCreateFlags(),
-			{},
+			globalSetLayout,
 			pushConstant
 		)
 	);
@@ -267,25 +276,6 @@ void Engine::InitPipelines() {
 	meshPipeline = pipelineBuilder.Build(vulkanBase.GetDevice(), renderPass.GetRenderPass());
 
 	CreateMaterial(meshPipeline, meshPipelineLayout, "defaultMesh");
-
-	pipelineBuilder.shaderStages.clear();
-
-	pipelineBuilder.shaderStages.push_back(
-		utils::pipelineShaderStageCreateInfo(
-			vk::ShaderStageFlagBits::eVertex,
-			cubeVertexShaderModule
-		)
-	);
-	pipelineBuilder.shaderStages.push_back(
-		utils::pipelineShaderStageCreateInfo(
-			vk::ShaderStageFlagBits::eFragment,
-			meshFragmentShaderModule
-		)
-	);
-
-	meshPipeline = pipelineBuilder.Build(vulkanBase.GetDevice(), renderPass.GetRenderPass());
-
-	CreateMaterial(meshPipeline, meshPipelineLayout, "color");
 
 	vulkanBase.GetDevice().destroyShaderModule(cubeVertexShaderModule);
 	vulkanBase.GetDevice().destroyShaderModule(cubeFragmentShaderModule);
@@ -371,28 +361,12 @@ void Engine::Draw() {
 
 void Engine::LoadMeshes() {
 
-	/*Mesh sponza;
+	Mesh sponza;
 	sponza.LoadFromObj("../assets/sponza.obj");
 
-	UploadMeshes(sponza);*/
-	//meshes["sponza"] = sponza;
-
-	Mesh mesh;
-
-	mesh.LoadFromObj("../assets/monkey_smooth.obj");
-	UploadMeshes(mesh);
-	meshBuffers.push_back(mesh);
-	meshes["monkey"] = mesh;
-
-	mesh.LoadFromObj("../assets/armadillo.obj");
-	UploadMeshes(mesh);
-	meshBuffers.push_back(mesh);
-	meshes["armadillo"] = mesh;
-
-	mesh.LoadFromObj("../assets/beast.obj");
-	UploadMeshes(mesh);
-	meshBuffers.push_back(mesh);
-	meshes["beast"] = mesh;
+	UploadMeshes(sponza);
+	meshes["sponza"] = sponza;
+	meshBuffers.push_back(sponza);
 
 }
 
@@ -405,64 +379,41 @@ void Engine::UploadMeshes(Mesh& mesh) {
 }
 
 void Engine::InitScene() {
-	view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
-	projection = glm::perspective(glm::radians(45.0f), (float)swapchain.GetExtent().width / swapchain.GetExtent().height, 0.1f, 10000.0f);
+	camera.view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
+	camera.projection = glm::perspective(glm::radians(45.0f), (float)swapchain.GetExtent().width / swapchain.GetExtent().height, 0.1f, 10000.0f);
 
 	model = glm::translate(model, glm::vec3(0, 0, 0));
-	model = glm::scale(model, glm::vec3(0.02, 0.02, 0.02));
+	model = glm::scale(model, glm::vec3(0.001, 0.001, 0.001));
 
-	RenderObject object{
-		GetMesh("monkey"),
+	RenderObject sponza{
+		GetMesh("sponza"),
 		GetMaterial("defaultMesh"),
 		model
 	};
 
-	renderables.push_back(object);
-
-	model = glm::mat4(1.0f);
-	model = glm::translate(model, glm::vec3(-10, 0, 0));
-	model = glm::scale(model, glm::vec3(0.02, 0.02, 0.02));
-
-	object = {
-		GetMesh("armadillo"),
-		GetMaterial("color"),
-		model
-	};
-
-	renderables.push_back(object);
-
-	model = glm::mat4(1.0f);
-	model = glm::translate(model, glm::vec3(10, 0, 0));
-	model = glm::scale(model, glm::vec3(0.02, 0.02, 0.02));
-
-	object = {
-		GetMesh("beast"),
-		GetMaterial("color"),
-		model
-	};
-
-	renderables.push_back(object);
+	renderables.push_back(sponza);
 }
 
 void Engine::DrawObjects(const vk::CommandBuffer& cmd, std::vector<RenderObject>& objects) {
 	Mesh* lastMesh = nullptr;
 	Material* lastMaterial = nullptr;
-	view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
+	camera.view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
+	GetCurrentFrame().cameraBuffer.CopyBuffer(vulkanBase.GetDevice(), camera);
 	for (auto& object : objects) {
 		if (object.material != lastMaterial) {
 			cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, object.material->pipeline);
 			lastMaterial = object.material;
-		}
-		
-		MeshPushConstant constant = {
-			object.model,
-			view,
-			projection,
-			clip
-		};
-		//object.transform.model = glm::rotate(object.transform.model, glm::radians((float)(frameNumber % 10)), glm::vec3(1.0f, 0.3f, 0.5f));
 
-		cmd.pushConstants(object.material->pipelineLayout, vk::ShaderStageFlagBits::eVertex, 0, sizeof(MeshPushConstant), &constant);
+			cmd.bindDescriptorSets(
+				vk::PipelineBindPoint::eGraphics,
+				object.material->pipelineLayout,
+				0,
+				GetCurrentFrame().globalDescriptor,
+				{}
+			);
+		}
+
+		cmd.pushConstants(object.material->pipelineLayout, vk::ShaderStageFlagBits::eVertex, 0, sizeof(glm::mat4x4), &object.model);
 
 		if (object.mesh != lastMesh) {
 			vk::DeviceSize offset = 0;
@@ -471,6 +422,68 @@ void Engine::DrawObjects(const vk::CommandBuffer& cmd, std::vector<RenderObject>
 		}
 
 		cmd.draw(object.mesh->vertices.size(), 1, 0, 0);
+	}
+}
+
+void Engine::InitDescriptors() {
+
+	std::vector<vk::DescriptorPoolSize> sizes{
+		{vk::DescriptorType::eUniformBuffer, 10}
+	};
+
+	descriptorPool = vulkanBase.GetDevice().createDescriptorPool(
+		vk::DescriptorPoolCreateInfo(
+			vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet,
+			10,
+			sizes
+		)
+	);
+
+	vk::DescriptorSetLayoutBinding cameraBufferBinding(
+		0, // binding
+		vk::DescriptorType::eUniformBuffer,
+		1, // descriptor count
+		vk::ShaderStageFlagBits::eVertex
+	);
+
+	globalSetLayout = vulkanBase.GetDevice().createDescriptorSetLayout(
+		vk::DescriptorSetLayoutCreateInfo(
+			vk::DescriptorSetLayoutCreateFlags(),
+			1,
+			&cameraBufferBinding
+		)
+	);
+
+	for (uint32_t i = 0; i < FRAME_OVERLAP; ++i) {
+		frames[i].cameraBuffer.Init<Camera>(vulkanBase.GetPhysicalDevice(), vulkanBase.GetDevice(),
+			vk::BufferUsageFlagBits::eUniformBuffer);
+		frames[i].cameraBuffer.BindBuffer(vulkanBase.GetDevice());
+
+		frames[i].globalDescriptor = vulkanBase.GetDevice().allocateDescriptorSets(
+			vk::DescriptorSetAllocateInfo(
+				descriptorPool,
+				globalSetLayout
+			)
+		).front();
+
+		vk::DescriptorBufferInfo bufferInfo(
+			frames[i].cameraBuffer.GetBuffer(),
+			0,
+			sizeof(Camera)
+		);
+
+		vulkanBase.GetDevice().updateDescriptorSets(
+			vk::WriteDescriptorSet(
+				frames[i].globalDescriptor,
+				0,
+				{},
+				vk::DescriptorType::eUniformBuffer,
+				{},
+				bufferInfo,
+				{}
+			),
+			{}
+		);
 	}
 }
 

@@ -19,6 +19,7 @@
 #include <FrameData.hpp>
 #include <Mesh.hpp>
 #include <RenderObject.hpp>
+#include <Camera.hpp>
 #include <utils.hpp>
 
 constexpr uint32_t FRAME_OVERLAP = 3;
@@ -44,10 +45,10 @@ private:
 	VulkanBase vulkanBase;
 	Swapchain swapchain;
 	RenderPass renderPass;
-	FrameData frames[FRAME_OVERLAP];
 	Framebuffer framebuffer;
 	Image depthImage;
 
+	vk::DescriptorSetLayout globalSetLayout;
 	vk::DescriptorPool descriptorPool;
 
 	vk::PipelineLayout meshPipelineLayout;
@@ -57,7 +58,9 @@ private:
 	UploadContext uploadContext;
 
 	uint32_t frameNumber{ 0 };
+	uint32_t sceneNumber{ 0 };
 
+	std::array<FrameData, FRAME_OVERLAP> frames;
 	std::vector<RenderObject> renderables;
 	std::unordered_map<std::string, Material> materials;
 	std::unordered_map<std::string, Mesh> meshes;
@@ -65,16 +68,15 @@ private:
 	glm::vec3 cameraPos;
 	glm::vec3 cameraFront;
 	glm::vec3 cameraUp;
+	Camera camera;
 
 	glm::mat4x4 model;
-	glm::mat4x4 view;
-	glm::mat4x4 projection;
-	glm::mat4x4 clip;
 
 	void InitCommands();
 	void InitSyncStructures();
 	void InitPipelines();
 	void InitScene();
+	void InitDescriptors();
 
 	void Draw();
 	void DrawObjects(const vk::CommandBuffer& cmd, std::vector<RenderObject>& objects);
@@ -82,7 +84,7 @@ private:
 	void LoadMeshes();
 	void UploadMeshes(Mesh& mesh);
 
-	const FrameData& GetCurrentFrame() const { return frames[frameNumber % FRAME_OVERLAP]; }
+	FrameData& GetCurrentFrame() { return frames.at(frameNumber % FRAME_OVERLAP); }
 	const Material* CreateMaterial(const vk::Pipeline& pipeline, const vk::PipelineLayout& pipelineLayout, const std::string& name);
 	Material* GetMaterial(const std::string& name);
 	Mesh* GetMesh(const std::string& name);

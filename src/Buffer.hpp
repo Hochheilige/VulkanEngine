@@ -44,7 +44,7 @@ public:
 		data = static_cast<uint8_t*>(device.mapMemory(deviceMemory, 0, bufferMemoryRequiremenents.size));
 		memcpy(data, &object, sizeof(object));
 		device.unmapMemory(deviceMemory);
-		device.bindBufferMemory(buffer, deviceMemory, 0);
+		//device.bindBufferMemory(buffer, deviceMemory, 0);
 	}
 
 	void CopyBuffer(const vk::Device& device, const std::vector<Vertex>& vertices);

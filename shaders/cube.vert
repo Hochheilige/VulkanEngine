@@ -6,15 +6,18 @@ layout (location = 2) in vec3 vColor;
 
 layout (location = 0) out vec3 outColor;
 
-layout (push_constant) uniform constants {
-	mat4 model;
+layout(set = 0, binding = 0) uniform Camera {
 	mat4 view;
 	mat4 projection;
 	mat4 clip;
-} pushConstants;
+} camera;
+
+layout (push_constant) uniform pushConstants {
+	mat4 model;
+} constants;
 
 void main()
 {
-	gl_Position = pushConstants.clip * pushConstants.projection * pushConstants.view * pushConstants.model * vec4(vPosition, 1.0f);
+	gl_Position = camera.clip * camera.projection * camera.view * constants.model * vec4(vPosition, 1.0f);
 	outColor = vColor;
 }
