@@ -4,7 +4,7 @@
 #include <stb/stb_image.h>
 
 Engine::Engine() {
-	cameraPos = glm::vec3(0.0f, 0.0f, 0.0f);
+	cameraPos = glm::vec3(0.0f, 0.05f, 0.0f);
 	cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
 	cameraUp = glm::vec3(0.0f, -1.0f, 0.0f);
 	camera = {
@@ -42,7 +42,7 @@ void Engine::Init() {
 void Engine::Run() {
 	SDL_Event event;
 	bool isCaptureMouse = false;
-
+	bool isAmbientLight = false;
 	// Camera data
 
 	float deltaTime = 0.0f;
@@ -57,6 +57,8 @@ void Engine::Run() {
 	int lastY = swapchain.GetExtent().height / 2.0f;
 	bool firstMouse = true;
 
+	sceneParameters.ambientColor = { 0.0f, 0.0f, 0.0f, 1.0f };
+
 	while (!window->isShouldClose) {
 
 		currentFrame = SDL_GetTicks() * 0.001f;
@@ -70,7 +72,7 @@ void Engine::Run() {
 		while (window->PollEvents(&event)) {
 			//ImGui_ImplSDL2_ProcessEvent(&event);
 			cameraSpeed = 2.5f * deltaTime;
-			printf("speed: %f\n", cameraSpeed);
+			//printf("speed: %f\n", cameraSpeed);
 			if (event.type == SDL_QUIT)
 				window->isShouldClose = true;
 			else if (event.type == SDL_KEYDOWN) {
@@ -87,10 +89,32 @@ void Engine::Run() {
 						SDL_SetRelativeMouseMode(SDL_TRUE);
 						SDL_CaptureMouse(SDL_TRUE);
 						isCaptureMouse = true;
+						firstMouse = true;
 					}
 				}
 
-	
+				if (event.key.keysym.sym == SDLK_UP) {
+					ambient += 0.1f;
+					if ((1.1f - ambient) <= 0.01) {
+						ambient = 1.0f;
+					}
+					sceneParameters.ambientColor = { ambient, ambient, ambient, 1 };
+				}
+
+				if (event.key.keysym.sym == SDLK_DOWN) {
+					ambient -= 0.1f;
+					if ((0.0f - ambient) >= 0.01f) {
+						ambient = 0.0f;
+					}
+					sceneParameters.ambientColor = { ambient, ambient, ambient, 1 };
+				}
+
+				if (event.key.keysym.sym == SDLK_SPACE) {
+					if (isAmbientLight)
+						isAmbientLight = false;
+					else
+						isAmbientLight = true;
+				}
 
 
 				if (event.key.keysym.sym == SDLK_w)
@@ -135,12 +159,17 @@ void Engine::Run() {
 				direction.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
 				cameraFront = glm::normalize(direction);
 			}
+
+			
 		}
 		//ImGui_ImplVulkan_NewFrame();
 		//ImGui_ImplSDL2_NewFrame(window->GetWindow());
 		//ImGui::NewFrame();
 		//ImGui::ShowDemoWindow();
-
+		if (isAmbientLight) {
+			float framed = frameNumber / 60.0f;
+			sceneParameters.ambientColor = { sin(framed), 0.0f, cos(framed), 1 };
+		}
 		Draw();
 	}
 }
@@ -407,8 +436,6 @@ void Engine::InitScene() {
 }
 
 void Engine::DrawObjects(const vk::CommandBuffer& cmd, std::vector<RenderObject>& objects) {
-	float framed = frameNumber / 60.0f;
-	sceneParameters.ambientColor = { 0.3f, 0.3f, 0.3f, 1 };
 	sceneParametersBuffer.MapBuffer(vulkanBase.GetDevice());
 	int32_t frameIndex = frameNumber % FRAME_OVERLAP;
 	*sceneParametersBuffer.GetData() += PadUnifopmBufferSize(sizeof(Scene)) * frameIndex;

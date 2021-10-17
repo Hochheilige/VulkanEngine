@@ -12,9 +12,9 @@ public:
 	vk::PipelineRasterizationStateCreateInfo rasterizer;
 	vk::PipelineColorBlendAttachmentState colorBlendAttachment;
 	vk::PipelineMultisampleStateCreateInfo multisampling;
-	vk::PipelineLayout pipelineLayout;
 	vk::PipelineDepthStencilStateCreateInfo depthStencil;
 	vk::PipelineDynamicStateCreateInfo dynamicStateCreateInfo;
+	vk::PipelineLayout pipelineLayout;
 
 	vk::Pipeline Build(const vk::Device& device, const vk::RenderPass& renderPass);
 };

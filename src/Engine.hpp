@@ -78,6 +78,8 @@ private:
 	glm::vec3 cameraUp;
 	Camera camera;
 
+	float ambient = 0.0f;
+
 	Scene sceneParameters;
 	Buffer sceneParametersBuffer;
 
