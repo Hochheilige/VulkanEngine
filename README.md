@@ -10,7 +10,7 @@ Vulkan Engine is my first try to write engine using Vulkan. This project is base
 ![Monkey head](https://user-images.githubusercontent.com/45881958/137649307-d2311951-2269-4661-892c-13fc71c807c6.gif)
 
 - ### Render 3d objects and generate ambient light
-![Untextured sponza](https://user-images.githubusercontent.com/45881958/137649259-63063151-7383-4944-9225-e79a6f317774.mp4)
+https://user-images.githubusercontent.com/45881958/137649259-63063151-7383-4944-9225-e79a6f317774.mp4
 
 ## Future Plans
 - [ ] Recreate and refactor engine architecture
