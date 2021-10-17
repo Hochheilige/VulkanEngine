@@ -3,13 +3,13 @@ Vulkan Engine is my first try to write engine using Vulkan. This project is base
 
 ## What the engine can do now?
 
-# - Render simple primitives
+- ### Render simple primitives
 ![Triangle](https://user-images.githubusercontent.com/45881958/137649276-3d8167e1-4abd-4639-a2db-f8f044601d89.png)
 
-# - Render 3d objects
+- ### Render 3d objects
 ![Monkey head](https://user-images.githubusercontent.com/45881958/137649307-d2311951-2269-4661-892c-13fc71c807c6.gif)
 
-# - Render 3d objects and generate ambient light
+- ### Render 3d objects and generate ambient light
 ![Untextured sponza](https://user-images.githubusercontent.com/45881958/137649259-63063151-7383-4944-9225-e79a6f317774.mp4)
 
 ## Future Plans
